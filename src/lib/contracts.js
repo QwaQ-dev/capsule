@@ -18,7 +18,7 @@ export const DAY = 86400n;
 export const toUnix = (date) => BigInt(Math.floor(new Date(date).getTime() / 1000));
 export const days = (v) => BigInt(Math.floor(Number(v || 0))) * DAY;
 
-// контракт отклоняет start/unlockAt в прошлом — берём запас 5 минут на подтверждение блока
+// контракт отклоняет start/unlockAt в прошло — берём запас 5 минут на подтверждение блока
 export const isFuture = (date) => !!date && toUnix(date) > BigInt(Math.floor(Date.now() / 1000)) + 300n;
 
 // способы burn: true — вызвать burn() у актива, false — long-lock на 1000 лет в vault
