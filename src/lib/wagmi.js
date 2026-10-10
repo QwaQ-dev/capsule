@@ -3,9 +3,7 @@ import { createPublicClient, defineChain } from "viem";
 import { injected } from "wagmi/connectors";
 
 // RPC тестнета Kinetiq Elysium публично не опубликован — берём из .env (например, endpoint Chainstack)
-// В проде это "/api/rpc" (прокси на Cloudflare), локально — прямой URL ноды из .env. Относительный путь viem не принимает
-const RAW_RPC = import.meta.env.VITE_ELYSIUM_RPC_URL ?? "";
-const RPC_URL = RAW_RPC ? new URL(RAW_RPC, window.location.origin).href : "";
+const RPC_URL = import.meta.env.VITE_ELYSIUM_RPC_URL ?? "";
 if (!RPC_URL) console.warn("VITE_ELYSIUM_RPC_URL не задан: чтение из контрактов и добавление сети в кошелёк не заработают");
 
 // Не импортируем elysiumTestnet из viem/chains — это другая сеть (Vulcan Forged, id 1338, LAVA)
