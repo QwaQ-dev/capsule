@@ -13,7 +13,7 @@ export const elysiumTestnet = defineChain({
   nativeCurrency: { name: "HYPE", symbol: "HYPE", decimals: 18 },
   rpcUrls: { default: { http: [RPC_URL] } },
   blockExplorers: {
-    default: { name: "Elysium Explorer", url: "https://explorer-elysium-testnet.t.conduit.xyz" },
+    default: { name: "Elysium Explorer", url: "https://elysium.kinetiq.xyz/" },
   },
   testnet: true,
 });
