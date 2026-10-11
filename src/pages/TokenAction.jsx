@@ -24,12 +24,12 @@ export default function TokenAction({ tab, base }) {
   const symbol = info.symbol ?? "TOKEN";
 
   let units = 0n;
-  try { units = amount ? parseUnits(amount, decimals) : 0n; } catch { /* некорректная сумма */ }
+  try { units = amount ? parseUnits(amount, decimals) : 0n; } catch {  }
   const enough = info.balance == null || units <= info.balance;
   const dateOk = isFuture(date);
   const cliffOk = Number(cliff || 0) <= Number(duration || 0);
 
-  const feeRow = ["Fee:", "gas only"]; // в контракте нет комиссии протокола
+  const feeRow = ["Fee:", "gas only"]; 
   const ready = isConnected && isAddress(token) && units > 0n && enough && (
     tab === "Lock" ? dateOk : tab === "Vest" ? dateOk && Number(duration) > 0 && cliffOk : method && agreed
   );
@@ -39,7 +39,7 @@ export default function TokenAction({ tab, base }) {
       ["Unlocks:", addDays(date, Number(cliff || 0) + Number(duration || 0)) || "XX.XX.XXXX"],
       ["Duration:", `${duration || "XXX"} Days`], feeRow,
     ],
-    Burn: [["Destination:", method ? (BURN_METHODS[method] ? "Burned" : "Vault, 1000 years") : "-"], feeRow],
+    Burn: [["Destination:", method ? (BURN_METHODS[method] ? "Burned" : "Vault, 1000 years") : "—"], feeRow],
   }[tab];
 
   const submit = async () => {
@@ -49,19 +49,21 @@ export default function TokenAction({ tab, base }) {
       Burn: ["disposeERC20", [token, units, BURN_METHODS[method]]],
     }[tab];
     try {
-      await tx.send({ address: token, abi: erc20Abi, functionName: "approve", args: [CONTRACTS.router, units] });
+      if (info.allowance == null || info.allowance < units) {
+        await tx.send({ address: token, abi: erc20Abi, functionName: "approve", args: [CONTRACTS.router, units] });
+      }
       await tx.send({ address: CONTRACTS.router, abi: routerAbi, functionName: call[0], args: call[1] });
-    } catch { }
+    } catch { /* tx.error */ }
   };
 
-  const dateError = date && !dateOk && <small className="error" role="alert">Дата должна быть в будущем</small>;
+  const dateError = date && !dateOk && <small className="error" role="alert">Enter valid date</small>;
 
   const form = (
     <>
       <Field label="Token" hint={info.symbol ?? "Token name"} onchain="read">
         <input value={token} onChange={(e) => setToken(e.target.value.trim())} placeholder="0x… token address" />
       </Field>
-      <Field label="Amount" aside={info.balance != null ? `Balance ${formatUnits(info.balance, decimals)}` : "Balance -"} onchain="read">
+      <Field label="Amount" aside={info.balance != null ? `Balance ${formatUnits(info.balance, decimals)}` : "Balance —"} onchain="read">
         <div className="input-wrap">
           <input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
           <button type="button" className="max" disabled={info.balance == null}
@@ -78,7 +80,7 @@ export default function TokenAction({ tab, base }) {
             <Field label="Cliff | days"><input type="number" min="0" value={cliff} onChange={(e) => setCliff(e.target.value)} /></Field>
             <Field label="Duration | days"><input type="number" min="1" value={duration} onChange={(e) => setDuration(e.target.value)} /></Field>
           </div>
-          {!cliffOk && <small className="error" role="alert">Cliff не может быть больше Duration</small>}
+          {!cliffOk && <small className="error" role="alert">Cliff cannot be more than Duration</small>}
         </>
       )}
       {tab === "Burn" && (

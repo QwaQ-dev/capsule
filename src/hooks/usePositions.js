@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useConnection } from "wagmi";
 import { erc20Abi, erc721Abi, formatUnits, parseAbi, zeroAddress } from "viem";
 import { publicClient as client } from "../lib/wagmi";
-import { CONTRACTS, DEPLOY_BLOCK } from "../lib/contracts";
+import { CONTRACTS, DEPLOY_BLOCK, routerAbi, vestingWalletAbi } from "../lib/contracts";
 
 const SOURCES = [
   ["event VestingCreated(address indexed creator, address indexed beneficiary, address indexed wallet, address token, uint256 amount, uint64 start, uint64 duration, uint64 cliff)", "creator"],
@@ -20,9 +20,9 @@ function toRow(log, ts) {
   switch (log.eventName) {
     case "VestingCreated": {
       const lock = a.duration === 0n; 
-      return { nft: false, asset: a.token, action: lock ? "Lock" : "Vest", qty: a.amount, start: lock ? ts : a.start, end: lock ? a.start : a.start + a.duration };
+      return { kind: "vesting", wallet: a.wallet, nft: false, asset: a.token, action: lock ? "Lock" : "Vest", qty: a.amount, start: lock ? ts : a.start, end: lock ? a.start : a.start + a.duration };
     }
-    case "Locked": return { nft: true, asset: a.token, action: "Lock", qty: 1n, start: ts, end: a.unlockAt };
+    case "Locked": return { kind: "nftlock", tokenId: a.tokenId, nft: true, asset: a.token, action: "Lock", qty: 1n, start: ts, end: a.unlockAt };
     case "ERC20Burned": return { nft: false, asset: a.token, action: "Burn", qty: a.amount, start: ts };
     case "ERC721Burned": return { nft: true, asset: a.collection, action: "Burn", qty: 1n, start: ts };
     default: return { nft: a.isNFT, asset: a.asset, action: "Burn", qty: a.quantity, start: ts }; 
@@ -38,6 +38,19 @@ async function load(user) {
   const times = Object.fromEntries(await Promise.all(blocks.map(async (n) => [n, (await client.getBlock({ blockNumber: n })).timestamp])));
   const rows = logs.map((l) => ({ ...toRow(l, times[l.blockNumber]), hash: l.transactionHash, key: `${l.transactionHash}-${l.logIndex}` }));
 
+  const now = Math.floor(Date.now() / 1000);
+  const claims = await Promise.all(rows.map(async (r) => {
+    if (r.kind === "vesting") {
+      const amount = await safe(client.readContract({ address: r.wallet, abi: vestingWalletAbi, functionName: "releasable", args: [r.asset] }));
+      return amount > 0n ? { fn: "releaseVesting", args: [r.wallet, r.asset] } : undefined;
+    }
+    if (r.kind === "nftlock") {
+      const lock = await safe(client.readContract({ address: CONTRACTS.router, abi: routerAbi, functionName: "locks", args: [r.asset, r.tokenId] }));
+      return lock && lock[0] !== zeroAddress && Number(lock[1]) <= now ? { fn: "release", args: [r.asset, r.tokenId] } : undefined;
+    }
+    return undefined;
+  }));
+
   const assets = [...new Set(rows.map((r) => r.asset))];
   const meta = Object.fromEntries(await Promise.all(assets.map(async (addr) => {
     const nft = rows.find((r) => r.asset === addr).nft;
@@ -45,9 +58,10 @@ async function load(user) {
     return [addr, nft ? { name: await read(erc721Abi, "name") } : { symbol: await read(erc20Abi, "symbol"), decimals: await read(erc20Abi, "decimals") }];
   })));
 
-  return rows.map((r) => {
+  return rows.map((r, i) => {
     const m = meta[r.asset];
     return {
+      claim: claims[i],
       key: r.key, hash: r.hash, action: r.action,
       asset: r.nft ? `NFT (${m.name ?? "collection"})` : `Token ($${m.symbol ?? "?"})`,
       quantity: r.nft ? String(r.qty) : formatUnits(r.qty, m.decimals ?? 18),

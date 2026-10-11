@@ -11,6 +11,15 @@ export const routerAbi = parseAbi([
   "function disposeERC20(address token, uint256 amount, bool nativeBurn)",
   "function disposeERC721(address collection, uint256 tokenId, bool nativeBurn)",
   "function disposalVault() view returns (address)",
+  "function releaseVesting(address wallet, address token)",
+  "function release(address collection, uint256 tokenId)",
+  "function releaseTo(address collection, uint256 tokenId, address destination)",
+  "function locks(address collection, uint256 tokenId) view returns (address beneficiary, uint64 unlockAt)",
+]);
+
+export const vestingWalletAbi = parseAbi([
+  "function releasable(address token) view returns (uint256)",
+  "function owner() view returns (address)",
 ]);
 
 export const DAY = 86400n;
@@ -21,4 +30,4 @@ export const isFuture = (date) => !!date && toUnix(date) > BigInt(Math.floor(Dat
 
 export const BURN_METHODS = { "Native burn()": true, "Long-term lock (1000 years)": false };
 
-export const DEPLOY_BLOCK = 0n;
+export const DEPLOY_BLOCK = BigInt(import.meta.env.VITE_DEPLOY_BLOCK || 0);

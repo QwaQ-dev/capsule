@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useConnection } from "wagmi";
 import Icon from "../components/Icon";
 import { TOKEN_ACTIONS, NFT_ACTIONS } from "../lib/constants";
 import { usePositions } from "../hooks/usePositions";
+import { useTx } from "../hooks/useTx";
+import { CONTRACTS, routerAbi } from "../lib/contracts";
 import { elysiumTestnet } from "../lib/wagmi";
 
 const EXPLORER = elysiumTestnet.blockExplorers.default.url;
@@ -29,10 +33,22 @@ function ActionGroup({ title, standard, actions, onPick }) {
 function Positions() {
   const { isConnected } = useConnection();
   const { data, isPending, isFetching, error } = usePositions(); 
+  const tx = useTx();
+  const queryClient = useQueryClient();
+  const [claiming, setClaiming] = useState("");
+
+  const claim = async (p) => {
+    setClaiming(p.key);
+    try {
+      await tx.send({ address: CONTRACTS.router, abi: routerAbi, functionName: p.claim.fn, args: p.claim.args });
+      await queryClient.invalidateQueries({ queryKey: ["positions"] });
+    } catch { /* tx.error */ }
+    setClaiming("");
+  };
 
   let status = "";
   if (!isConnected) status = "Connect wallet to see your positions";
-  else if (error) status = "Не удалось загрузить позиции";
+  else if (error) status = "Cannot load positions";
   else if (isPending && isFetching) status = "Loading…";
   else if (!data?.length) status = "No positions yet";
 
@@ -46,7 +62,7 @@ function Positions() {
           <table className="table">
             <thead>
               <tr>
-                <th>Asset</th><th>Action</th><th>Quantity</th><th>Start date</th><th>End date</th><th />
+                <th>Asset</th><th>Action</th><th>Quantity</th><th>Start date</th><th>End date</th><th /><th />
               </tr>
             </thead>
             <tbody>
@@ -57,6 +73,13 @@ function Positions() {
                   <td>{p.quantity}</td>
                   <td>{p.start}</td>
                   <td>{p.end}</td>
+                  <td>
+                    {p.claim && (
+                      <button className="btn btn--outline btn--sm" data-onchain="write" disabled={!!claiming} onClick={() => claim(p)}>
+                        {claiming === p.key ? "Claiming…" : "Claim"}
+                      </button>
+                    )}
+                  </td>
                   <td><a className="explorer" href={`${EXPLORER}/tx/${p.hash}`} target="_blank" rel="noreferrer">Check in Explorer ›</a></td>
                 </tr>
               ))}
@@ -64,6 +87,7 @@ function Positions() {
           </table>
         </div>
       )}
+      {tx.error && <small className="error" role="alert">{tx.error}</small>}
     </section>
   );
 }

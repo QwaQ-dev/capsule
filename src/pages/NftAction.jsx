@@ -9,6 +9,7 @@ import { PAGES } from "../lib/constants";
 import { CONTRACTS, BURN_METHODS, DAY, routerAbi, toUnix, isFuture } from "../lib/contracts";
 import { useTx } from "../hooks/useTx";
 import { useOwnedNfts } from "../hooks/useOwnedNfts";
+import { publicClient as client } from "../lib/wagmi";
 
 function NftPicker({ ids, selected, onToggle }) {
   return (
@@ -40,7 +41,7 @@ export default function NftAction({ tab, base }) {
   const [progress, setProgress] = useState("");
   const tx = useTx();
   const queryClient = useQueryClient();
-  const nfts = useOwnedNfts(collection); 
+  const nfts = useOwnedNfts(collection);
 
   const toggle = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const dateOk = isFuture(date);
@@ -62,14 +63,18 @@ export default function NftAction({ tab, base }) {
       for (const [i, label] of selected.entries()) {
         setProgress(`${i + 1}/${selected.length}`);
         const id = BigInt(label);
-        await tx.send({ address: collection, abi: erc721Abi, functionName: "approve", args: [CONTRACTS.router, id] });
+        const read = (functionName, args) => client.readContract({ address: collection, abi: erc721Abi, functionName, args });
+        const [approved, approvedAll] = await Promise.all([read("getApproved", [id]), read("isApprovedForAll", [address, CONTRACTS.router])]);
+        if (approved.toLowerCase() !== CONTRACTS.router.toLowerCase() && !approvedAll) {
+          await tx.send({ address: collection, abi: erc721Abi, functionName: "approve", args: [CONTRACTS.router, id] });
+        }
         const call = tab === "Burn"
           ? { functionName: "disposeERC721", args: [collection, id, BURN_METHODS[method]] }
           : { functionName: "lock", args: [collection, id, address, tab === "Lock" ? toUnix(date) : unlockAt(i)] };
         await tx.send({ address: CONTRACTS.router, abi: routerAbi, ...call });
       }
       setSelected([]);
-    } catch {  }
+    } catch { /* tx.error */ }
     queryClient.invalidateQueries({ queryKey: ["nfts"] }); 
     setProgress("");
   };
@@ -78,10 +83,10 @@ export default function NftAction({ tab, base }) {
   if (!isConnected) nftsStatus = "Connect wallet to see your NFTs";
   else if (!isAddress(collection)) nftsStatus = "Enter collection address";
   else if (nfts.error) nftsStatus = nfts.error.message;
-  else if (nfts.isPending) nftsStatus = "Loading NFTs…";
+  else if (nfts.isPending) nftsStatus = "Loading NFTs...";
   else if (!nfts.data.ids.length) nftsStatus = "You have no NFTs from this collection";
 
-  const dateError = date && !dateOk && <small className="error" role="alert">Дата должна быть в будущем</small>;
+  const dateError = date && !dateOk && <small className="error" role="alert">Date must be at future</small>;
 
   const form = (
     <>

@@ -4,7 +4,7 @@ import { useConnection } from "wagmi";
 import Icon from "../components/Icon";
 import { PageShell, SummaryCard } from "../components/ActionLayout";
 import { Field, Checkbox } from "../components/Field";
-import { parseRecipients, chunk, SAMPLE_CSV } from "../lib/multisend";
+import { parseRecipients, chunk, SAMPLE_CSV, MAX_ROWS } from "../lib/multisend";
 import { CONTRACTS, routerAbi } from "../lib/contracts";
 import { useTokenInfo } from "../hooks/useTokenInfo";
 import { useTx } from "../hooks/useTx";
@@ -24,19 +24,19 @@ function Issues({ items, tone }) {
       {items.slice(0, 5).map((e, i) => (
         <li key={i}>{e.line ? `Строка ${e.line}: ` : ""}{e.message}</li>
       ))}
-      {items.length > 5 && <li>…и ещё {items.length - 5}</li>}
+      {items.length > 5 && <li>... more {items.length - 5}</li>}
     </ul>
   );
 }
 
 export default function Multisend() {
   const [token, setToken] = useState("");
-  const [source, setSource] = useState(null); 
+  const [source, setSource] = useState(null); // { name, text }
   const [confirmed, setConfirmed] = useState(false);
   const [progress, setProgress] = useState("");
   const { address, isConnected } = useConnection();
   const tx = useTx();
-  const info = useTokenInfo(token); 
+  const info = useTokenInfo(token); // [CONTRACT READ] symbol, decimals, balanceOf
   const decimals = info.decimals ?? 18;
   const symbol = info.symbol ?? "TOKEN";
 
@@ -56,7 +56,9 @@ export default function Multisend() {
     const parts = chunk(result.rows);
     try {
       setProgress("approve");
-      await tx.send({ address: token, abi: erc20Abi, functionName: "approve", args: [CONTRACTS.router, result.total] });
+      if (info.allowance == null || info.allowance < result.total) {
+        await tx.send({ address: token, abi: erc20Abi, functionName: "approve", args: [CONTRACTS.router, result.total] });
+      }
       for (const [i, part] of parts.entries()) {
         setProgress(`${i + 1}/${parts.length}`);
         await tx.send({
@@ -64,7 +66,7 @@ export default function Multisend() {
           args: [token, part.map((r) => r.address), part.map((r) => r.units)],
         });
       }
-    } catch {  }
+    } catch { /* tx.error */ }
     setProgress("");
   };
 
