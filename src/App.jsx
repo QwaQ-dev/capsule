@@ -8,7 +8,6 @@ import Multisend from "./pages/Multisend";
 import { PAGES } from "./lib/constants";
 import "./App.css";
 
-/** /tokens/:tab, /nft/:tab — проверяет вкладку и рендерит нужную страницу */
 function TabRoute({ Page, base }) {
   const { tab } = useParams();
   const name = tab && tab[0].toUpperCase() + tab.slice(1).toLowerCase();

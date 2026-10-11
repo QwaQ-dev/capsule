@@ -28,7 +28,7 @@ function ActionGroup({ title, standard, actions, onPick }) {
 
 function Positions() {
   const { isConnected } = useConnection();
-  const { data, isPending, isFetching, error } = usePositions(); // [CONTRACT READ] события AssetRouter
+  const { data, isPending, isFetching, error } = usePositions(); 
 
   let status = "";
   if (!isConnected) status = "Connect wallet to see your positions";
@@ -81,7 +81,6 @@ export default function Home() {
           <h1 className="hero__title">
             Check any token.<br />Lock yours.<br /><span>Earn their trust.</span>
           </h1>
-          {/* маскот: положи файл в public/mascot.png */}
           <img className="hero__mascot" src="/mascot.png" alt="" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
         </section>
 

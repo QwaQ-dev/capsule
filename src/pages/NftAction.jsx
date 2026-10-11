@@ -31,7 +31,7 @@ function NftPicker({ ids, selected, onToggle }) {
 export default function NftAction({ tab, base }) {
   const { address, isConnected } = useConnection();
   const [collection, setCollection] = useState("");
-  const [selected, setSelected] = useState([]); // id токенов строками
+  const [selected, setSelected] = useState([]); 
   const [date, setDate] = useState("");
   const [interval, setIntervalDays] = useState("");
   const [perBatch, setPerBatch] = useState("");
@@ -40,11 +40,11 @@ export default function NftAction({ tab, base }) {
   const [progress, setProgress] = useState("");
   const tx = useTx();
   const queryClient = useQueryClient();
-  const nfts = useOwnedNfts(collection); // [CONTRACT READ] NFT пользователя в коллекции
+  const nfts = useOwnedNfts(collection); 
 
   const toggle = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const dateOk = isFuture(date);
-  const feeRow = ["Fee:", "gas only"]; // в контракте нет комиссии протокола
+  const feeRow = ["Fee:", "gas only"]; 
 
   const ready = isConnected && isAddress(collection) && selected.length > 0 && (
     tab === "Lock" ? dateOk : tab === "Vest" ? dateOk && Number(interval) > 0 && Number(perBatch) > 0 : method && agreed
@@ -55,8 +55,6 @@ export default function NftAction({ tab, base }) {
     Burn: [["Destination:", method ? (BURN_METHODS[method] ? "Burned" : "Vault, 1000 years") : "—"], feeRow],
   }[tab];
 
-  // [CONTRACT WRITE] на каждый NFT: approve(router, id) → lock / disposeERC721 (в контракте нет batch и NFT-вестинга).
-  // Vest собран из нескольких lock: NFT партии k разблокируются в start + k * interval
   const submit = async () => {
     const perBatchN = Math.max(1, Math.floor(Number(perBatch) || 1));
     const unlockAt = (i) => toUnix(date) + BigInt(Math.floor(i / perBatchN)) * BigInt(Math.floor(Number(interval))) * DAY;
@@ -71,8 +69,8 @@ export default function NftAction({ tab, base }) {
         await tx.send({ address: CONTRACTS.router, abi: routerAbi, ...call });
       }
       setSelected([]);
-    } catch { /* текст ошибки лежит в tx.error */ }
-    queryClient.invalidateQueries({ queryKey: ["nfts"] }); // обновить список (часть NFT уже могла уйти в контракт)
+    } catch {  }
+    queryClient.invalidateQueries({ queryKey: ["nfts"] }); 
     setProgress("");
   };
 

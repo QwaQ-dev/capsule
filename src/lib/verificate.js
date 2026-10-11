@@ -1,12 +1,14 @@
-import { isAddress, parseAbi, toFunctionSelector, zeroAddress } from "viem";
+import { erc20Abi, isAddress, parseAbi, toFunctionSelector, zeroAddress } from "viem";
 import { publicClient as client } from "./wagmi";
+import { CONTRACTS, routerAbi } from "./contracts";
+import { loadPlatform } from "./platform";
+import { agePoints, computeScore, creatorPoints, creatorShare, distribution, supplyPoints } from "./scoring";
 
-// Blockscout Elysium Testnet (его же использует Chainstack в туториалах). Conduit-эксплорер публичного API не имеет
 const API = import.meta.env.VITE_EXPLORER_API ?? "https://elysium.kinetiq.xyz/api/v2";
 
 const DEAD = "0x000000000000000000000000000000000000dead";
-const IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"; // EIP-1967
-const MINIMAL_PROXY = "0x363d3d373d3d3d363d73"; // EIP-1167
+const IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"; 
+const MINIMAL_PROXY = "0x363d3d373d3d3d363d73"; 
 const ownerAbi = parseAbi(["function owner() view returns (address)"]);
 
 const safe = (p) => p.catch(() => undefined);
@@ -14,7 +16,6 @@ const get = (path) =>
   fetch(API + path, { signal: AbortSignal.timeout(10_000) }).then((r) => (r.ok ? r.json() : undefined)).catch(() => undefined);
 const sel = (sig) => toFunctionSelector(sig).slice(2).toLowerCase();
 
-// Эвристики по именам функций из ABI (если контракт верифицирован) или по селекторам в байткоде
 const FN = {
   mint: { names: /^mint/i, sigs: ["mint(address,uint256)", "mint(uint256)", "mintTo(address,uint256)"] },
   blacklist: { names: /black.?list|block.?list|isBot|setBots?|addBot/i, sigs: ["addBlacklist(address)", "blacklist(address)", "setBlacklist(address,bool)", "isBlacklisted(address)", "addToBlacklist(address)"] },
@@ -30,12 +31,8 @@ const FN = {
 const SELFDESTRUCT = /\b(selfdestruct|suicide)\s*\(/;
 const EXTERNAL_CALL = /\.(call|delegatecall|staticcall)\s*[({]/;
 
-/** Вес = сколько баллов снимается, если проверка провалена. Правь под себя */
-const W = {
-  open: 25, honeypot: 40, mint: 10, balance: 12, selfdestruct: 10, holders: 10, hidden: 10, blacklist: 8,
-  tax: 8, proxy: 8, owner: 6, regain: 6, whitelist: 5, withdraw: 5, pause: 5, cooldown: 3, external: 3,
-};
-const UNVERIFIED_CAP = 60; // без исходников контракт не проанализировать — выше этого балла не даём
+const DELEGATECALL = /\.delegatecall\s*[({]/;
+const SELL_BLOCK = /(block|disable|stop)Sell|canSell|sellEnabled|sellingEnabled|isHoneypot|tradingEnabled|tradingOpen|enableTrading|tradeEnabled/i;
 
 function holdersCheck(token, holders) {
   const total = token?.total_supply ? BigInt(token.total_supply) : 0n;
@@ -49,7 +46,6 @@ function holdersCheck(token, holders) {
   return { status: pct > 50 ? "fail" : "pass", detail: `Top-5 holders: ${pct}%` };
 }
 
-/** [CONTRACT READ] RPC (код, owner, слот прокси) + Blockscout API (верификация, ABI, холдеры, дата деплоя) */
 export async function analyzeToken(address) {
   if (!isAddress(address)) throw new Error("Некорректный адрес контракта");
   const [code, owner, slot, addr, token, sc, holders] = await Promise.all([
@@ -81,7 +77,7 @@ export async function analyzeToken(address) {
   const byFn = (key) => {
     const { names, sigs } = FN[key];
     if (abiNames) return abiNames.some((n) => names.test(n)) ? "fail" : "pass";
-    return sigs.some((s) => bytecode.includes(sel(s))) ? "fail" : "unknown"; // селектор не найден ≠ функции нет
+    return sigs.some((s) => bytecode.includes(sel(s))) ? "fail" : "unknown"; 
   };
   const bySource = (re) => (source ? (re.test(source) ? "fail" : "pass") : "unknown");
 
@@ -109,22 +105,77 @@ export async function analyzeToken(address) {
     { id: "honeypot", group: "Transparency", label: "Is Honeypot", status: "unknown", detail: "Нужна симуляция продажи, по данным эксплорера не определить" },
     { id: "open", group: "Transparency", label: "Not Open Source", status: verified === undefined ? "unknown" : verified ? "pass" : "fail" },
     { id: "selfdestruct", group: "Transparency", label: "Can Self Destruct", status: bySource(SELFDESTRUCT) },
-  ].map((i) => ({ ...i, weight: W[i.id] }));
+  ];
 
-  const failed = items.filter((i) => i.status === "fail");
-  let score = 100 - failed.reduce((s, i) => s + i.weight, 0);
-  if (verified === false) score = Math.min(score, UNVERIFIED_CAP);
+  const now = Math.floor(Date.now() / 1000);
+  const st = Object.fromEntries(items.map((i) => [i.id, i.status]));
+  const renounced = owner === zeroAddress;
 
   const txHash = addr?.creation_transaction_hash ?? addr?.creation_tx_hash;
   const tx = txHash ? await get(`/transactions/${txHash}`) : undefined;
+  const ageDays = tx?.timestamp ? (Date.now() - Date.parse(tx.timestamp)) / 86_400_000 : undefined;
+
+  const deployer = addr?.creator_address_hash;
+  const authors = [...new Set([deployer, owner].filter((a) => a && a !== zeroAddress).map((a) => a.toLowerCase()))];
+  const bal = (a) => safe(client.readContract({ address, abi: erc20Abi, functionName: "balanceOf", args: [a] }));
+  const routerSet = CONTRACTS.router !== zeroAddress;
+  const [platform, vault, authorBals, zeroBal, deadBal] = await Promise.all([
+    loadPlatform(address),
+    routerSet ? safe(client.readContract({ address: CONTRACTS.router, abi: routerAbi, functionName: "disposalVault" })) : undefined,
+    Promise.all(authors.map(bal)),
+    bal(zeroAddress),
+    bal(DEAD),
+  ]);
+  const wallets = platform.available ? [...new Set(platform.vestings.map((v) => v.wallet))].slice(0, 100) : [];
+  const walletBalances = new Map(await Promise.all(wallets.map(async (w) => [w.toLowerCase(), await bal(w)])));
+  for (const [k, v] of walletBalances) if (v === undefined) walletBalances.delete(k);
+
+  const creator = platform.available
+    ? creatorShare({ platform, authors: new Set(authors), creatorBalance: authorBals.reduce((x, b) => x + (b ?? 0n), 0n), now })
+    : undefined;
+  const totalSupply = token?.total_supply ? BigInt(token.total_supply) : undefined;
+  const dist = totalSupply && holders?.items
+    ? distribution({
+        holders: holders.items, totalSupply, burned: (zeroBal ?? 0n) + (deadBal ?? 0n), platform,
+        exclude: new Set([CONTRACTS.router, vault].filter(Boolean).map((a) => a.toLowerCase())), walletBalances, now,
+      })
+    : undefined;
+
+  const code_ = (label, max, ok) => ({ label, max, points: verified && ok ? max : 0, available: verified !== undefined });
+  const dangerous = st.selfdestruct === "pass" && bySource(DELEGATECALL) === "pass";
+  const sellBlock = !renounced && !!(abiNames?.some((n) => SELL_BLOCK.test(n)) || (source && SELL_BLOCK.test(source)));
+
+  const result = computeScore([
+    { id: "platform", title: "Platform", max: 30, parts: [
+      { label: "LP burned/locked", max: 15, points: 0, available: false }, // TODO: нужна фабрика DEX на Elysium, чтобы найти LP-пару
+      { label: "Creator tokens locked/burned", max: 15, points: creator === undefined ? 0 : creatorPoints(creator), available: creator !== undefined },
+    ] },
+    { id: "code", title: "Code", max: 40, parts: [
+      code_("Verified", 10, true),
+      code_("No mint", 6, st.mint === "pass" || renounced),
+      code_("No blacklist/whitelist/pause", 6, [st.blacklist, st.whitelist, st.pause].every((x) => x === "pass")),
+      code_("Tax fixed", 6, st.tax === "pass"),
+      code_("Not a proxy", 6, st.proxy === "pass"),
+      code_("No selfdestruct/delegatecall", 6, dangerous),
+    ] },
+    { id: "nft", title: "Hyperliquid NFT", max: 10, parts: [
+      { label: "Author holds NFT > 30 days", max: 10, points: 0, available: false }, // TODO: адрес NFT-коллекции и сеть
+    ] },
+    { id: "age", title: "Age", max: 10, parts: [
+      { label: "Token age", max: 10, points: ageDays === undefined ? 0 : agePoints(ageDays), available: ageDays !== undefined },
+    ] },
+    { id: "supply", title: "Distribution", max: 10, parts: [
+      { label: "Top-10 share", max: 10, points: dist ? supplyPoints(dist.share) : 0, available: !!dist },
+    ] },
+  ], sellBlock);
 
   return {
-    score: Math.max(0, score),
+    ...result,
+    sellBlock,
     standard: token?.type ?? "Unknown",
-    deployedDaysAgo: tx?.timestamp ? Math.floor((Date.now() - Date.parse(tx.timestamp)) / 86_400_000) : undefined,
+    deployedDaysAgo: ageDays === undefined ? undefined : Math.floor(ageDays),
     owner,
     items,
-    failed,
-    conclusive: items.filter((i) => i.status !== "unknown").length,
+    topHolders: dist?.rows ?? [],
   };
 }

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useConfig, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
-/** [CONTRACT WRITE] отправляет транзакцию, ждёт подтверждения; при ошибке кидает исключение и пишет error */
 export function useTx() {
   const config = useConfig();
   const write = useWriteContract();

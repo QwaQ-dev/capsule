@@ -4,7 +4,7 @@ import { useConnection } from "wagmi";
 import Icon from "../components/Icon";
 import { PageShell, SummaryCard } from "../components/ActionLayout";
 import { Field, Checkbox } from "../components/Field";
-import { parseRecipients, chunk, SAMPLE_CSV, MAX_ROWS } from "../lib/multisend";
+import { parseRecipients, chunk, SAMPLE_CSV } from "../lib/multisend";
 import { CONTRACTS, routerAbi } from "../lib/contracts";
 import { useTokenInfo } from "../hooks/useTokenInfo";
 import { useTx } from "../hooks/useTx";
@@ -31,12 +31,12 @@ function Issues({ items, tone }) {
 
 export default function Multisend() {
   const [token, setToken] = useState("");
-  const [source, setSource] = useState(null); // { name, text }
+  const [source, setSource] = useState(null); 
   const [confirmed, setConfirmed] = useState(false);
   const [progress, setProgress] = useState("");
   const { address, isConnected } = useConnection();
   const tx = useTx();
-  const info = useTokenInfo(token); // [CONTRACT READ] symbol, decimals, balanceOf
+  const info = useTokenInfo(token); 
   const decimals = info.decimals ?? 18;
   const symbol = info.symbol ?? "TOKEN";
 
@@ -49,10 +49,9 @@ export default function Multisend() {
   const onFile = async (e) => {
     const f = e.target.files[0];
     if (f) setSource({ name: f.name, text: await f.text() });
-    e.target.value = ""; // чтобы тот же файл можно было выбрать повторно после правок
+    e.target.value = ""; 
   };
 
-  // [CONTRACT WRITE] approve(router) на общую сумму, затем router.distribute по BATCH_SIZE получателей на транзакцию
   const onStart = async () => {
     const parts = chunk(result.rows);
     try {
@@ -65,7 +64,7 @@ export default function Multisend() {
           args: [token, part.map((r) => r.address), part.map((r) => r.units)],
         });
       }
-    } catch { /* текст ошибки лежит в tx.error */ }
+    } catch {  }
     setProgress("");
   };
 

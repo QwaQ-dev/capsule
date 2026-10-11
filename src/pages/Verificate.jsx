@@ -63,11 +63,13 @@ export default function Verificate() {
   const rows = report
     ? [
         ["Score factors:", ""],
-        ...(report.failed.length ? report.failed.map((f) => [f.label, `−${f.weight}`]) : [["No risks found", ""]]),
-        ["Checks completed:", `${report.conclusive}/${report.items.length}`],
+        ...report.blocks.map((b) => [b.title, b.unavailable ? "n/a" : `${b.earned}/${b.possible}${b.partial ? "*" : ""}`]),
+        ["Risk level:", report.risk],
+        ...(report.sellBlock ? [["Possible sell block:", "score ≤ 10"]] : []),
         ["Fee:", "free"],
       ]
     : [["Score factors:", ""], ["Fee:", "free"]];
+  const partial = report?.blocks.some((b) => b.partial || b.unavailable);
 
   return (
     <PageShell label="Verificate" icon="coin" title="Verificate token">
@@ -87,11 +89,28 @@ export default function Verificate() {
               <dl className="info">
                 <div><dt>Token standart:</dt><dd>{report.standard}</dd></div>
                 <div><dt>Deployed:</dt><dd>{report.deployedDaysAgo == null ? "—" : report.deployedDaysAgo === 0 ? "today" : `${report.deployedDaysAgo} days ago`}</dd></div>
+                <div><dt>Owner:</dt><dd>{short(report.owner)}</dd></div>
               </dl>
               <div className="lists">
                 <CheckList title="Centralization" items={report.items.filter((i) => i.group === "Centralization")} />
                 <CheckList title="Transparency" items={report.items.filter((i) => i.group === "Transparency")} />
               </div>
+              {report.topHolders.length > 0 && (
+                <div className="table-scroll verify__holders">
+                  <table className="table table--compact">
+                    <thead>
+                      <tr><th>Top holders</th><th>Liquid</th><th>Locked</th><th>Unlocking soon</th></tr>
+                    </thead>
+                    <tbody>
+                      {report.topHolders.map((h) => (
+                        <tr key={h.address}>
+                          <td>{short(h.address)}</td><td>{h.liquid}%</td><td>{h.locked}%</td><td>{h.soon}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>
           )}
         </div>

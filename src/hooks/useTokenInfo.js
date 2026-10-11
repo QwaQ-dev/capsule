@@ -1,7 +1,6 @@
 import { useConnection, useReadContracts } from "wagmi";
 import { erc20Abi, isAddress, zeroAddress } from "viem";
 
-/** [CONTRACT READ] symbol, decimals и баланс кошелька для ERC-20 по адресу токена */
 export function useTokenInfo(token) {
   const { address: account } = useConnection();
   const base = { address: token, abi: erc20Abi };

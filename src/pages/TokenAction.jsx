@@ -42,7 +42,6 @@ export default function TokenAction({ tab, base }) {
     Burn: [["Destination:", method ? (BURN_METHODS[method] ? "Burned" : "Vault, 1000 years") : "-"], feeRow],
   }[tab];
 
-  // [CONTRACT WRITE] approve(router) → createVesting / disposeERC20 на AssetRouter
   const submit = async () => {
     const call = {
       Lock: ["createVesting", [token, units, address, toUnix(date), 0n, 0n]],
@@ -52,7 +51,7 @@ export default function TokenAction({ tab, base }) {
     try {
       await tx.send({ address: token, abi: erc20Abi, functionName: "approve", args: [CONTRACTS.router, units] });
       await tx.send({ address: CONTRACTS.router, abi: routerAbi, functionName: call[0], args: call[1] });
-    } catch { /* текст ошибки лежит в tx.error */ }
+    } catch { }
   };
 
   const dateError = date && !dateOk && <small className="error" role="alert">Дата должна быть в будущем</small>;

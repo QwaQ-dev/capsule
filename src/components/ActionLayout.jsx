@@ -19,7 +19,6 @@ export function SummaryCard({ icon, visual, headline, rows = [], cta, disabled, 
   );
 }
 
-/** Шапка страницы: подменю (иконка + название + опциональные табы) и «‹ Заголовок» */
 export function PageShell({ label, icon, title, tabs, children }) {
   return (
     <main className="container lock">
@@ -33,7 +32,6 @@ export function PageShell({ label, icon, title, tabs, children }) {
   );
 }
 
-/** Каркас Lock / Vest / Burn: табы + форма слева, summary справа */
 export default function ActionLayout({ label, icon, tab, base, short, form, summary }) {
   const tabs = (
     <div className="tabs">

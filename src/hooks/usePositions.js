@@ -4,7 +4,6 @@ import { erc20Abi, erc721Abi, formatUnits, parseAbi, zeroAddress } from "viem";
 import { publicClient as client } from "../lib/wagmi";
 import { CONTRACTS, DEPLOY_BLOCK } from "../lib/contracts";
 
-// событие и имя индексированного поля с адресом пользователя
 const SOURCES = [
   ["event VestingCreated(address indexed creator, address indexed beneficiary, address indexed wallet, address token, uint256 amount, uint64 start, uint64 duration, uint64 cliff)", "creator"],
   ["event Locked(address indexed creator, address indexed token, uint256 indexed tokenId, address beneficiary, uint64 unlockAt)", "creator"],
@@ -16,22 +15,20 @@ const SOURCES = [
 const safe = (p) => p.catch(() => undefined);
 const date = (sec) => (sec == null ? "-" : new Date(Number(sec) * 1000).toLocaleDateString("ru-RU"));
 
-/** Приводит лог к строке таблицы; ts — время блока (сек) */
 function toRow(log, ts) {
   const a = log.args;
   switch (log.eventName) {
     case "VestingCreated": {
-      const lock = a.duration === 0n; // Lock = createVesting с duration 0, start = дата разблокировки
+      const lock = a.duration === 0n; 
       return { nft: false, asset: a.token, action: lock ? "Lock" : "Vest", qty: a.amount, start: lock ? ts : a.start, end: lock ? a.start : a.start + a.duration };
     }
     case "Locked": return { nft: true, asset: a.token, action: "Lock", qty: 1n, start: ts, end: a.unlockAt };
     case "ERC20Burned": return { nft: false, asset: a.token, action: "Burn", qty: a.amount, start: ts };
     case "ERC721Burned": return { nft: true, asset: a.collection, action: "Burn", qty: 1n, start: ts };
-    default: return { nft: a.isNFT, asset: a.asset, action: "Burn", qty: a.quantity, start: ts }; // DisposalLocked: long-lock 1000 лет
+    default: return { nft: a.isNFT, asset: a.asset, action: "Burn", qty: a.quantity, start: ts }; 
   }
 }
 
-/** [CONTRACT READ] история действий пользователя из событий AssetRouter + symbol/decimals/name активов */
 async function load(user) {
   const logs = (await Promise.all(SOURCES.map(({ event, field }) =>
     client.getLogs({ address: CONTRACTS.router, event, args: { [field]: user }, fromBlock: DEPLOY_BLOCK, toBlock: "latest" })
