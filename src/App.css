@@ -23,6 +23,27 @@
 	font-display: swap;
 }
 
+/* ========== Scale ========== */
+/* Макет рассчитан на ~960px. На больших экранах увеличиваем интерфейс целиком (как зум браузера).
+	 Поменяй числа zoom, чтобы подобрать размер. На телефонах zoom не применяется */
+@media (min-width: 1200px) {
+	html {
+		zoom: 1.25;
+	}
+}
+
+@media (min-width: 1500px) {
+	html {
+		zoom: 1.5;
+	}
+}
+
+@media (min-width: 1800px) {
+	html {
+		zoom: 2;
+	}
+}
+
 /* ========== Base ========== */
 * {
 	box-sizing: border-box;
@@ -208,8 +229,8 @@ a {
 }
 
 .hero__title {
-	font: 700 clamp(32px, 6vw, 44px) / 1 "Sonic", "", sans-serif;
-	letter-spacing: 0,1em;
+	font: 700 clamp(32px, 6vw, 44px) / 1 "Sonic", sans-serif;
+	letter-spacing: 0;
 	text-transform: uppercase;
 }
 
@@ -222,11 +243,6 @@ a {
 	height: auto;
 	max-width: 40%;
 	image-rendering: pixelated;
-}
-
-.nft-empty {
-	padding: 14px 0;
-	text-align: center;
 }
 
 .groups {
@@ -295,6 +311,7 @@ a {
 	border-color: rgba(74, 92, 255, 0.7);
 }
 
+/* positions */
 .positions-block {
 	display: flex;
 	flex-direction: column;
@@ -328,7 +345,7 @@ a {
 
 .table th,
 .table td {
-	padding: 12px 12px;
+	padding: 12px;
 	text-align: left;
 }
 
@@ -481,6 +498,17 @@ a {
 	color: var(--muted);
 }
 
+input[type="number"] {
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
 .input-wrap {
 	position: relative;
 	display: flex;
@@ -555,20 +583,6 @@ a {
 .check input:checked {
 	background: var(--text);
 }
-
-.verify__main { min-width: 0; }
-.verify__error { display: block; padding: 8px 8px 0; }
-.lists { display: flex; gap: 48px; padding: 20px 0 0 40px; }
-.checks__title { margin-bottom: 14px; font: 400 13px var(--body); }
-.checks { display: flex; flex-direction: column; gap: 7px; list-style: none; padding: 0; font-size: 9px; }
-.checks li { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
-.checks li > span:first-child::before { content: "•"; margin-right: 6px; }
-.mark { display: inline-flex; width: 12px; height: 12px; justify-content: center; align-items: center; }
-.mark--pass { color: #4ade80; }
-.mark--unknown { color: var(--muted); }
-.mark--fail { position: relative; border-radius: 2px; background: #d6403f; }
-.mark--fail::after { content: ""; width: 6px; height: 1.5px; background: #fff; }
-.verify__note { display: block; padding: 16px 0 0 40px; }
 
 .check input:checked::after {
 	content: "";
@@ -651,7 +665,7 @@ a {
 .nft-grid {
 	display: grid;
 	grid-auto-flow: column;
-	grid-auto-columns: calc((100% - 24px) / 4); /* 4 карточки видны, остальные — скроллом */
+	grid-auto-columns: calc((100% - 24px) / 4);
 	gap: 8px;
 	margin: 0 -10px;
 	padding: 8px 10px 12px;
@@ -692,6 +706,11 @@ a {
 	display: flex;
 }
 
+.nft-empty {
+	padding: 14px 0;
+	text-align: center;
+}
+
 /* ========== Verificate ========== */
 .search {
 	display: flex;
@@ -727,6 +746,24 @@ a {
 	align-items: start;
 }
 
+.verify__main {
+	min-width: 0;
+}
+
+.verify__error {
+	display: block;
+	padding: 8px 8px 0;
+}
+
+.verify__holders {
+	margin-top: 20px;
+}
+
+.verify__note {
+	display: block;
+	padding: 16px 0 0 40px;
+}
+
 .info {
 	display: flex;
 	gap: 28px;
@@ -741,6 +778,67 @@ a {
 .info dd {
 	margin: 0;
 	color: var(--muted);
+}
+
+.lists {
+	display: flex;
+	gap: 48px;
+	padding: 20px 0 0 40px;
+}
+
+.checks__title {
+	margin-bottom: 14px;
+	font: 400 13px var(--body);
+}
+
+.checks {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	padding: 0;
+	list-style: none;
+	font-size: 9px;
+}
+
+.checks li {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 24px;
+}
+
+.checks li > span:first-child::before {
+	content: "•";
+	margin-right: 6px;
+}
+
+.mark {
+	display: inline-flex;
+	justify-content: center;
+	align-items: center;
+	width: 12px;
+	height: 12px;
+}
+
+.mark--pass {
+	color: #4ade80;
+}
+
+.mark--unknown {
+	color: var(--muted);
+}
+
+.mark--fail {
+	position: relative;
+	border-radius: 2px;
+	background: #d6403f;
+}
+
+.mark--fail::after {
+	content: "";
+	width: 6px;
+	height: 1.5px;
+	background: #fff;
 }
 
 .ring {
@@ -828,11 +926,64 @@ a {
 	color: #e0b050;
 }
 
-/* ========== Responsive ========== */
+/* ========== Mobile ========== */
 @media (max-width: 720px) {
+	.header__row {
+		height: 56px;
+	}
+
+	/* home */
+	.home {
+		padding: 24px 0 56px;
+	}
+
+	.home__inner {
+		gap: 24px;
+	}
+
+	.hero {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 16px;
+		padding-left: 0;
+	}
+
+	.hero__mascot {
+		align-self: center;
+		width: 220px;
+		max-width: 70%;
+	}
+
+	.groups {
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.group__actions {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+	}
+
+	.tile {
+		width: auto;
+		height: 56px;
+	}
+
+	.positions {
+		width: 100%;
+		min-width: 0;
+	}
+
+	/* action pages */
 	.lock__grid,
 	.verify__grid {
 		grid-template-columns: 1fr;
+		padding-inline: 0;
+		margin-inline: 0;
+	}
+
+	.back {
+		margin-left: 0;
 	}
 
 	.tabs {
@@ -843,25 +994,31 @@ a {
 		display: none;
 	}
 
+	/* verificate */
+	.search {
+		flex-wrap: wrap;
+		padding-inline: 0;
+	}
+
+	.search input {
+		flex: 1 1 100%;
+	}
+
 	.info {
 		flex-wrap: wrap;
+		gap: 16px;
 		padding-left: 0;
 	}
 
-	.search {
-		flex-wrap: wrap;
+	.lists {
+		flex-direction: column;
+		gap: 24px;
+		padding-left: 0;
 	}
-}
 
-input[type="number"] {
-	-moz-appearance: textfield;
-	appearance: textfield;
-}
-
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-	-webkit-appearance: none;
-	margin: 0;
+	.verify__note {
+		padding-left: 0;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
