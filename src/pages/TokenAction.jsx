@@ -96,7 +96,7 @@ export default function TokenAction({ tab, base }) {
         </>
       )}
       <Checkbox checked={wantsReward} onChange={setWantsReward}>
-        Receive $CAPE 
+        Receive $CAPE as a reward
       </Checkbox>
       {tx.error && <small className="error" role="alert">{tx.error}</small>}
     </>

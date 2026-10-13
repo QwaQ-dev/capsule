@@ -1,43 +1,77 @@
 import { useState } from "react";
 import Icon from "../components/Icon";
-import { PageShell, SummaryCard } from "../components/ActionLayout";
+import { PageShell } from "../components/ActionLayout";
 import { analyzeToken } from "../lib/verificate";
+import { elysiumTestnet } from "../lib/wagmi";
 
+const EXPLORER = elysiumTestnet.blockExplorers.default.url;
 const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "—");
-const STATUS_LABEL = { pass: "No risk found", fail: "Risk found", unknown: "Unknown" };
 
-function ScoreRing({ score }) {
-  const r = 26, c = 2 * Math.PI * r;
-  const missing = score == null ? 0 : ((100 - score) / 100) * c;
+function StatusIcon({ status }) {
+  if (status === "pass") {
+    return (
+      <span className="scan-icon scan-icon--pass" title="Passed" aria-label="Passed">
+        <Icon name="check" size={14} />
+      </span>
+    );
+  }
+  if (status === "fail") {
+    return (
+      <span className="scan-icon scan-icon--fail" title="Alert" aria-label="Alert">
+        <span className="scan-icon__dot" />
+      </span>
+    );
+  }
+  // attention / unknown
   return (
-    <svg className="ring" width="60" height="60" viewBox="0 0 64 64" aria-hidden="true">
-      <circle className="ring__track" cx="32" cy="32" r={r} />
-      <circle className="ring__miss" cx="32" cy="32" r={r} strokeDasharray={`${missing} ${c}`} transform="rotate(-90 32 32)" />
-    </svg>
-  );
-}
-
-function Mark({ status }) {
-  return (
-    <span className={`mark mark--${status}`} role="img" aria-label={STATUS_LABEL[status]}>
-      {status === "pass" ? <Icon name="check" size={12} /> : status === "unknown" ? "?" : null}
+    <span className="scan-icon scan-icon--attention" title="Attention" aria-label="Attention">
+      !
     </span>
   );
 }
 
-function CheckList({ title, items }) {
+function ScoreRing({ score }) {
+  const r = 42;
+  const c = 2 * Math.PI * r;
+  const value = score == null ? 0 : score;
+  const offset = ((100 - value) / 100) * c;
   return (
-    <section>
-      <h3 className="checks__title">{title}</h3>
-      <ul className="checks">
-        {items.map((i) => (
-          <li key={i.id} title={i.detail}>
-            <span>{i.label}</span>
-            <Mark status={i.status} />
-          </li>
-        ))}
-      </ul>
-    </section>
+    <div className="score-ring">
+      <svg width="110" height="110" viewBox="0 0 110 110" aria-hidden="true">
+        <circle className="score-ring__track" cx="55" cy="55" r={r} />
+        <circle
+          className="score-ring__value"
+          cx="55"
+          cy="55"
+          r={r}
+          strokeDasharray={`${c}`}
+          strokeDashoffset={offset}
+          transform="rotate(-90 55 55)"
+        />
+      </svg>
+      <span className="score-ring__num">{score ?? "—"}</span>
+    </div>
+  );
+}
+
+function CopyBtn({ value }) {
+  const [ok, setOk] = useState(false);
+  if (!value) return null;
+  return (
+    <button
+      type="button"
+      className="copy-btn"
+      title="Copy"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setOk(true);
+          setTimeout(() => setOk(false), 1200);
+        } catch { /* ignore */ }
+      }}
+    >
+      {ok ? "✓" : "⧉"}
+    </button>
   );
 }
 
@@ -52,72 +86,144 @@ export default function Verificate() {
     setLoading(true);
     setError("");
     try {
-      setReport(await analyzeToken(ca.trim())); // [CONTRACT READ] RPC + Blockscout
+      setReport(await analyzeToken(ca.trim()));
     } catch (err) {
       setReport(null);
-      setError(err.message);
+      setError(err.message || "Scan failed");
     }
     setLoading(false);
   };
 
-  const rows = report
-    ? [
-        ["Score factors:", ""],
-        ...report.blocks.map((b) => [b.title, b.unavailable ? "n/a" : `${b.earned}/${b.possible}${b.partial ? "*" : ""}`]),
-        ["Risk level:", report.risk],
-        ...(report.sellBlock ? [["Possible sell block:", "score ≤ 10"]] : []),
-        ["Fee:", "free"],
-      ]
-    : [["Score factors:", ""], ["Fee:", "free"]];
-  const partial = report?.blocks.some((b) => b.partial || b.unavailable);
+  const items = report?.items ?? [];
+  const alerts = items.filter((i) => i.status === "fail").length;
+  const attention = items.filter((i) => i.status === "attention").length;
+  const passed = items.filter((i) => i.status === "pass").length;
+
+  const deployLabel =
+    report?.deployedDaysAgo == null
+      ? "—"
+      : report.deployedDaysAgo === 0
+        ? "today"
+        : `${report.deployedDaysAgo} days ago`;
 
   return (
     <PageShell label="Verificate" icon="coin" title="Verificate token">
       <form className="search" onSubmit={search}>
         <label htmlFor="ca">Enter CA:</label>
-        <input id="ca" value={ca} onChange={(e) => setCa(e.target.value)} placeholder="0x…" />
-        <button className="btn btn--outline" disabled={loading || !ca.trim()}>
+        <input
+          id="ca"
+          value={ca}
+          onChange={(e) => setCa(e.target.value)}
+          placeholder="0x…"
+          spellCheck={false}
+        />
+        <button type="submit" className="btn btn--outline" disabled={loading || !ca.trim()}>
           <Icon name="search" size={14} /> {loading ? "Checking…" : "Search"}
         </button>
       </form>
-      {error && <small className="error verify__error" role="alert">{error}</small>}
+      {error && (
+        <small className="error verify__error" role="alert">
+          {error}
+        </small>
+      )}
 
       <div className="verify__grid">
         <div className="verify__main" data-onchain="read">
           {report && (
-            <>
-              <dl className="info">
-                <div><dt>Token standart:</dt><dd>{report.standard}</dd></div>
-                <div><dt>Deployed:</dt><dd>{report.deployedDaysAgo == null ? "—" : report.deployedDaysAgo === 0 ? "today" : `${report.deployedDaysAgo} days ago`}</dd></div>
-                <div><dt>Owner:</dt><dd>{short(report.owner)}</dd></div>
-              </dl>
-              <div className="lists">
-                <CheckList title="Centralization" items={report.items.filter((i) => i.group === "Centralization")} />
-                <CheckList title="Transparency" items={report.items.filter((i) => i.group === "Transparency")} />
-              </div>
-              {report.topHolders.length > 0 && (
-                <div className="table-scroll verify__holders">
-                  <table className="table table--compact">
-                    <thead>
-                      <tr><th>Top holders</th><th>Liquid</th><th>Locked</th><th>Unlocking soon</th></tr>
-                    </thead>
-                    <tbody>
-                      {report.topHolders.map((h) => (
-                        <tr key={h.address}>
-                          <td>{short(h.address)}</td><td>{h.liquid}%</td><td>{h.locked}%</td><td>{h.soon}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
+            <div className="scan-table-wrap">
+              <table className="scan-table">
+                <thead>
+                  <tr>
+                    <th>Scan result</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th aria-hidden="true" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <span className="scan-result">
+                          <StatusIcon status={row.status} />
+                          <span className={`scan-label scan-label--${row.status}`}>{row.label}</span>
+                        </span>
+                      </td>
+                      <td className="muted">{row.category}</td>
+                      <td className="scan-desc">{row.description}</td>
+                      <td className="scan-info" title={row.description}>ⓘ</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {!report && !loading && !error && (
+            <p className="verify__placeholder muted">Enter a token contract address and press Search</p>
           )}
         </div>
-        <SummaryCard
-          visual={<ScoreRing score={report?.score} />}
-          headline={<>{report?.score ?? "—"}/<small>100</small> Reputation score</>}
-          rows={rows} />
+
+        <aside className="panel summary verify-summary">
+          <h3 className="summary__head">Summary</h3>
+          <div className="summary__body verify-summary__body">
+            <ScoreRing score={report?.score} />
+
+            <div className="badges">
+              <span className="badge badge--alert">{alerts} Alerts</span>
+              <span className="badge badge--attention">{attention} Attention</span>
+              <span className="badge badge--pass">{passed} Passed</span>
+            </div>
+
+            <p className="score-line">
+              <strong>{report?.score ?? "—"}</strong>
+              <span className="muted">/100</span> Reputation score
+            </p>
+
+            <div className="overview">
+              <p className="overview__title">Token Overview:</p>
+              <div className="overview__row">
+                <span className="muted">Deploy Time:</span>
+                <span>{deployLabel}</span>
+              </div>
+              <div className="overview__row">
+                <span className="muted">Token Address:</span>
+                <span className="overview__addr">
+                  {short(report?.address)}
+                  <CopyBtn value={report?.address} />
+                  {report?.address && (
+                    <a
+                      className="overview__ext"
+                      href={`${EXPLORER}/address/${report.address}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Open in explorer"
+                    >
+                      ↗
+                    </a>
+                  )}
+                </span>
+              </div>
+              <div className="overview__row">
+                <span className="muted">Deployer Address:</span>
+                <span className="overview__addr">
+                  {short(report?.deployer)}
+                  <CopyBtn value={report?.deployer} />
+                  {report?.deployer && (
+                    <a
+                      className="overview__ext"
+                      href={`${EXPLORER}/address/${report.deployer}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Open in explorer"
+                    >
+                      ↗
+                    </a>
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </PageShell>
   );

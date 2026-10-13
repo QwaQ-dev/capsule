@@ -4,7 +4,7 @@ import { PAGES } from "../lib/constants";
 
 export function SummaryCard({ icon, visual, headline, rows = [], cta, disabled, onClick, onchain }) {
   return (
-    <aside className={`panel summary ${icon || visual ? "" : "summary--bare"}`}>
+    <aside className={`panel_sum summary ${icon || visual ? "" : "summary--bare"}`}>
       <h3 className="summary__head">Summary</h3>
       <div className="summary__body">
         {visual}

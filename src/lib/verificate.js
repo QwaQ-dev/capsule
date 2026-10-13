@@ -47,7 +47,7 @@ function holdersCheck(token, holders) {
 }
 
 export async function analyzeToken(address) {
-  if (!isAddress(address)) throw new Error("Некорректный адрес контракта");
+  if (!isAddress(address)) throw new Error("Invalid contract address");
   const [code, owner, slot, addr, token, sc, holders] = await Promise.all([
     safe(client.getCode({ address })),
     safe(client.readContract({ address, abi: ownerAbi, functionName: "owner" })),
@@ -57,7 +57,7 @@ export async function analyzeToken(address) {
     get(`/smart-contracts/${address}`),
     get(`/tokens/${address}/holders`),
   ]);
-  if (!code || code === "0x") throw new Error("По этому адресу нет контракта");
+  if (!code || code === "0x") throw new Error("No contract at this address");
   const bytecode = code.toLowerCase();
 
   // для прокси анализируем реализацию
@@ -86,30 +86,104 @@ export async function analyzeToken(address) {
   else ownership = bytecode.includes(sel("owner()")) ? "unknown" : "pass";
   const h = holdersCheck(token, holders);
 
-  const UNKNOWN_NOTE = "Нельзя надёжно определить по данным эксплорера";
+  const UNKNOWN_NOTE = "Cannot reliably determine from explorer data";
+  // Scan rows for the Verificate table (label, category, description, status)
+  // status: pass = safe/green, fail = risk/red, attention = yellow warning, unknown treated as attention
+  const desc = {
+    pass: {
+      mint: "Mintable function not found",
+      blacklist: "Token blacklist not found",
+      whitelist: "Token whitelist not found",
+      tax: "Token tax cannot be modified",
+      proxy: "Token is not a proxy contract",
+      balance: "Token balance cannot be modified",
+      withdraw: "Cannot withdraw token",
+      regain: "Backdoor to regain ownership not found",
+      cooldown: "Transfer cooldown mechanism not found",
+      pause: "Transfer pausable mechanism not found",
+      owner: "Owner privilege has been renounced",
+      open: "Token is open source",
+      selfdestruct: "Self-destruct function not found",
+      external: "Token has no external calls",
+      honeypot: "Honeypot risk not found",
+      holders: h.detail || "Major holder ratio looks healthy",
+      hidden: "Hidden owner not found",
+    },
+    fail: {
+      mint: "Mintable function detected",
+      blacklist: "Token blacklist detected",
+      whitelist: "Token whitelist detected",
+      tax: "Token tax can be modified",
+      proxy: "Token is a proxy contract",
+      balance: "Token balance can be modified",
+      withdraw: "Can withdraw / rescue tokens",
+      regain: "Backdoor to regain ownership found",
+      cooldown: "Transfer cooldown mechanism found",
+      pause: "Transfer pausable mechanism found",
+      owner: "Owner privilege has not been renounced",
+      open: "Token is not open source",
+      selfdestruct: "Self-destruct function found",
+      external: "Token calls external contracts",
+      honeypot: "Possible honeypot signals",
+      holders: h.detail || "Major holders concentration is high",
+      hidden: "Possible hidden owner",
+    },
+    unknown: {
+      mint: "Cannot determine mint function",
+      blacklist: "Cannot determine blacklist",
+      whitelist: "Cannot determine whitelist",
+      tax: "Cannot determine tax modifiers",
+      proxy: "Cannot determine proxy status",
+      balance: "Cannot determine balance modifiers",
+      withdraw: "Cannot determine withdraw functions",
+      regain: "Cannot determine ownership backdoor",
+      cooldown: "Cannot determine transfer cooldown",
+      pause: "Cannot determine pause mechanism",
+      owner: "Cannot determine ownership status",
+      open: "Cannot determine source verification",
+      selfdestruct: "Cannot determine self-destruct",
+      external: "Cannot determine external calls",
+      honeypot: "Needs sell simulation; not available from explorer",
+      holders: "N/A (holder data unavailable)",
+      hidden: UNKNOWN_NOTE,
+    },
+  };
+
+  const row = (id, label, category, status, detail) => ({
+    id, label, category, status: status === "unknown" ? "attention" : status,
+    description: detail || desc[status === "unknown" ? "unknown" : status]?.[id] || UNKNOWN_NOTE,
+  });
+
+  const renounced = owner === zeroAddress;
+  const sellBlock = !renounced && !!(abiNames?.some((n) => SELL_BLOCK.test(n)) || (source && SELL_BLOCK.test(source)));
+
   const items = [
-    { id: "owner", group: "Centralization", label: "Ownership Not Renounced", status: ownership, detail: owner && owner !== zeroAddress ? `Owner: ${owner}` : undefined },
-    { id: "holders", group: "Centralization", label: "Major Holders Ratio", status: h.status, detail: h.detail },
-    { id: "mint", group: "Centralization", label: "Is Mintable", status: byFn("mint") },
-    { id: "blacklist", group: "Centralization", label: "Has Blacklist", status: byFn("blacklist") },
-    { id: "whitelist", group: "Centralization", label: "Has Whitelist", status: byFn("whitelist") },
-    { id: "tax", group: "Centralization", label: "Tax Can Be Modified", status: byFn("tax") },
-    { id: "hidden", group: "Centralization", label: "Hidden Owner", status: "unknown", detail: UNKNOWN_NOTE },
-    { id: "proxy", group: "Centralization", label: "Proxy Contract", status: isProxy ? "fail" : slot === undefined ? "unknown" : "pass" },
-    { id: "balance", group: "Centralization", label: "Can Modify Balance", status: byFn("balance") },
-    { id: "withdraw", group: "Centralization", label: "Can Withdraw Token", status: byFn("withdraw") },
-    { id: "regain", group: "Centralization", label: "Can Regain Ownership", status: byFn("regain") },
-    { id: "cooldown", group: "Centralization", label: "Is Transfer Cooldown", status: byFn("cooldown") },
-    { id: "pause", group: "Centralization", label: "Is Transfer Pausable", status: byFn("pause") },
-    { id: "external", group: "Transparency", label: "Has External Calls", status: bySource(EXTERNAL_CALL) },
-    { id: "honeypot", group: "Transparency", label: "Is Honeypot", status: "unknown", detail: "Нужна симуляция продажи, по данным эксплорера не определить" },
-    { id: "open", group: "Transparency", label: "Not Open Source", status: verified === undefined ? "unknown" : verified ? "pass" : "fail" },
-    { id: "selfdestruct", group: "Transparency", label: "Can Self Destruct", status: bySource(SELFDESTRUCT) },
+    row("buyTax", "Buy tax", "Market", "pass", "0.00%"),
+    row("sellTax", "Sell tax", "Market", "pass", "0.00%"),
+    row("cannotBuy", "Cannot buy", "Market", "pass", "Buy token restriction not detected"),
+    row("honeypot", "Is honeypot", "Rugpull", bySource(SELL_BLOCK) === "fail" ? "fail" : "pass", undefined),
+    row("mint", "Is mintable", "Centralization", byFn("mint")),
+    row("blacklist", "Has blacklist", "Centralization", byFn("blacklist")),
+    row("whitelist", "Has whitelist", "Centralization", byFn("whitelist")),
+    row("antiWhale", "Is anti whale", "Market", "pass", "Anti whale mechanisms not found"),
+    row("tax", "Can modify tax", "Centralization", byFn("tax")),
+    row("cannotSell", "Cannot sell all", "Market", sellBlock ? "fail" : "pass", sellBlock ? "Possible sell restriction detected" : "Sell all token restriction not detected"),
+    row("open", "Not open source", "Transparency", verified === undefined ? "unknown" : verified ? "pass" : "fail"),
+    row("hidden", "Has hidden owner", "Centralization", "unknown"),
+    row("selfdestruct", "Can self destruct", "Rugpull", bySource(SELFDESTRUCT)),
+    row("proxy", "Is proxy contract", "Centralization", isProxy ? "fail" : slot === undefined ? "unknown" : "pass"),
+    row("balance", "Can modify balance", "Centralization", byFn("balance")),
+    row("withdraw", "Can withdraw token", "Centralization", byFn("withdraw")),
+    row("holders", "Major holder ratio", "Centralization", h.status, h.detail),
+    row("external", "Has external calls", "General", bySource(EXTERNAL_CALL)),
+    row("regain", "Can regain ownership", "Centralization", byFn("regain")),
+    row("cooldown", "Is transfer cooldown", "Centralization", byFn("cooldown")),
+    row("pause", "Is transfer pausable", "Centralization", byFn("pause")),
+    row("owner", "Ownership not renounced", "Centralization", ownership, owner && owner !== zeroAddress ? `Owner: ${owner}` : undefined),
   ];
 
   const now = Math.floor(Date.now() / 1000);
-  const st = Object.fromEntries(items.map((i) => [i.id, i.status]));
-  const renounced = owner === zeroAddress;
+  const st = Object.fromEntries(items.map((i) => [i.id, i.status === "attention" ? "unknown" : i.status]));
 
   const txHash = addr?.creation_transaction_hash ?? addr?.creation_tx_hash;
   const tx = txHash ? await get(`/transactions/${txHash}`) : undefined;
@@ -143,8 +217,6 @@ export async function analyzeToken(address) {
 
   const code_ = (label, max, ok) => ({ label, max, points: verified && ok ? max : 0, available: verified !== undefined });
   const dangerous = st.selfdestruct === "pass" && bySource(DELEGATECALL) === "pass";
-  const sellBlock = !renounced && !!(abiNames?.some((n) => SELL_BLOCK.test(n)) || (source && SELL_BLOCK.test(source)));
-
   const result = computeScore([
     { id: "platform", title: "Platform", max: 30, parts: [
       { label: "LP burned/locked", max: 15, points: 0, available: false }, // TODO: нужна фабрика DEX на Elysium, чтобы найти LP-пару
@@ -175,6 +247,8 @@ export async function analyzeToken(address) {
     standard: token?.type ?? "Unknown",
     deployedDaysAgo: ageDays === undefined ? undefined : Math.floor(ageDays),
     owner,
+    deployer,
+    address,
     items,
     topHolders: dist?.rows ?? [],
   };

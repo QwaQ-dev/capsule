@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useChains, useConnect, useConnection, useConnectors, useDisconnect, useSwitchChain } from "wagmi";
+import Icon from "./Icon";
 
 const short = (a) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
@@ -42,7 +43,7 @@ export default function WalletButton() {
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
         >
-          {isPending ? "…" : "Connect"}
+          {isPending ? "..." : "Connect wallet "} <Icon name="plus" size={26} />
         </button>
         {open && (
           <div className="wallet__menu" role="menu">
@@ -60,7 +61,7 @@ export default function WalletButton() {
                 }}
               >
                 <span>{c.name}</span>
-                {isPending && variables?.connector?.uid === c.uid && <small className="muted">…</small>}
+                {isPending && variables?.connector?.uid === c.uid && <small className="muted">...</small>}
               </button>
             ))}
           </div>
