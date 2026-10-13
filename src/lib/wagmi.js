@@ -18,7 +18,12 @@ export const elysiumTestnet = defineChain({
 
 export const config = createConfig({
   chains: [elysiumTestnet],
-  connectors: [injected()], 
+  // Separate entries so the Connect menu can list wallets by name
+  connectors: [
+    injected({ target: "metaMask", shimDisconnect: true }),
+    injected({ target: "coinbaseWallet", shimDisconnect: true }),
+    injected({ shimDisconnect: true }), // Browser Wallet / other injected
+  ],
   transports: { [elysiumTestnet.id]: http(RPC_URL) },
 });
 

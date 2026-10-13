@@ -32,12 +32,14 @@ function NftPicker({ ids, selected, onToggle }) {
 export default function NftAction({ tab, base }) {
   const { address, isConnected } = useConnection();
   const [collection, setCollection] = useState("");
-  const [selected, setSelected] = useState([]); 
+  const [selected, setSelected] = useState([]);
   const [date, setDate] = useState("");
   const [interval, setIntervalDays] = useState("");
   const [perBatch, setPerBatch] = useState("");
   const [method, setMethod] = useState("");
   const [agreed, setAgreed] = useState(false);
+  // Whether the user wants the optional action reward from the router
+  const [wantsReward, setWantsReward] = useState(true);
   const [progress, setProgress] = useState("");
   const tx = useTx();
   const queryClient = useQueryClient();
@@ -45,15 +47,16 @@ export default function NftAction({ tab, base }) {
 
   const toggle = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const dateOk = isFuture(date);
-  const feeRow = ["Fee:", "gas only"]; 
+  const feeRow = ["Fee:", "gas only"];
+  const rewardRow = ["Reward:", wantsReward ? "yes" : "no"];
 
   const ready = isConnected && isAddress(collection) && selected.length > 0 && (
     tab === "Lock" ? dateOk : tab === "Vest" ? dateOk && Number(interval) > 0 && Number(perBatch) > 0 : method && agreed
   );
   const rows = {
-    Lock: [["Unlocks:", date || "XX.XX.XXXX"], feeRow],
-    Vest: [["Starts:", date || "XX.XX.XXXX"], ["Release:", `${perBatch || 1}/${interval || "XX"} Days`], feeRow],
-    Burn: [["Destination:", method ? (BURN_METHODS[method] ? "Burned" : "Vault, 1000 years") : "—"], feeRow],
+    Lock: [["Unlocks:", date || "XX.XX.XXXX"], rewardRow, feeRow],
+    Vest: [["Starts:", date || "XX.XX.XXXX"], ["Release:", `${perBatch || 1}/${interval || "XX"} Days`], rewardRow, feeRow],
+    Burn: [["Destination:", method ? (BURN_METHODS[method] ? "Burned" : "Vault, 1000 years") : "—"], rewardRow, feeRow],
   }[tab];
 
   const submit = async () => {
@@ -68,14 +71,15 @@ export default function NftAction({ tab, base }) {
         if (approved.toLowerCase() !== CONTRACTS.router.toLowerCase() && !approvedAll) {
           await tx.send({ address: collection, abi: erc721Abi, functionName: "approve", args: [CONTRACTS.router, id] });
         }
+        // Overloads with bool wantsReward as the last argument
         const call = tab === "Burn"
-          ? { functionName: "disposeERC721", args: [collection, id, BURN_METHODS[method]] }
-          : { functionName: "lock", args: [collection, id, address, tab === "Lock" ? toUnix(date) : unlockAt(i)] };
+          ? { functionName: "disposeERC721", args: [collection, id, BURN_METHODS[method], wantsReward] }
+          : { functionName: "lock", args: [collection, id, address, tab === "Lock" ? toUnix(date) : unlockAt(i), wantsReward] };
         await tx.send({ address: CONTRACTS.router, abi: routerAbi, ...call });
       }
       setSelected([]);
-    } catch { /* tx.error */ }
-    queryClient.invalidateQueries({ queryKey: ["nfts"] }); 
+    } catch { /* error is stored in tx.error */ }
+    queryClient.invalidateQueries({ queryKey: ["nfts"] });
     setProgress("");
   };
 
@@ -86,7 +90,7 @@ export default function NftAction({ tab, base }) {
   else if (nfts.isPending) nftsStatus = "Loading NFTs...";
   else if (!nfts.data.ids.length) nftsStatus = "You have no NFTs from this collection";
 
-  const dateError = date && !dateOk && <small className="error" role="alert">Date must be at future</small>;
+  const dateError = date && !dateOk && <small className="error" role="alert">Enter a valid future date</small>;
 
   const form = (
     <>
@@ -119,6 +123,9 @@ export default function NftAction({ tab, base }) {
           <Checkbox checked={agreed} onChange={setAgreed}>I confirm this action</Checkbox>
         </>
       )}
+      <Checkbox checked={wantsReward} onChange={setWantsReward}>
+        Receive $CAPE as a reward
+      </Checkbox>
       {tx.error && <small className="error" role="alert">{tx.error}</small>}
     </>
   );

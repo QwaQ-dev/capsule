@@ -12,6 +12,10 @@ const ICONS = {
   download: <><circle cx="12" cy="12" r="9" /><path d="M12 7v9M8.5 12.5L12 16l3.5-3.5" /></>,
   down: <path d="M6 9l6 6 6-6" />,
   check: <path d="M5 12l5 5 9-10" />,
+  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  map: <><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z" /><path d="M9 3v15M15 6v15" /></>,
+  key: <><circle cx="8" cy="15" r="4" /><path d="M11 13l9-9M17 4l3 3" /></>,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7" /></>,
 };
 
 export default function Icon({ name, size = 18 }) {

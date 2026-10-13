@@ -17,6 +17,8 @@ export default function TokenAction({ tab, base }) {
   const [duration, setDuration] = useState("");
   const [method, setMethod] = useState("");
   const [agreed, setAgreed] = useState(false);
+  // Whether the user wants the optional action reward from the router
+  const [wantsReward, setWantsReward] = useState(true);
   const tx = useTx();
 
   const info = useTokenInfo(token); // [CONTRACT READ] symbol, decimals, balanceOf
@@ -24,39 +26,41 @@ export default function TokenAction({ tab, base }) {
   const symbol = info.symbol ?? "TOKEN";
 
   let units = 0n;
-  try { units = amount ? parseUnits(amount, decimals) : 0n; } catch {  }
+  try { units = amount ? parseUnits(amount, decimals) : 0n; } catch { /* invalid amount */ }
   const enough = info.balance == null || units <= info.balance;
   const dateOk = isFuture(date);
   const cliffOk = Number(cliff || 0) <= Number(duration || 0);
 
-  const feeRow = ["Fee:", "gas only"]; 
+  const feeRow = ["Fee:", "gas only"];
+  const rewardRow = ["Reward:", wantsReward ? "yes" : "no"];
   const ready = isConnected && isAddress(token) && units > 0n && enough && (
     tab === "Lock" ? dateOk : tab === "Vest" ? dateOk && Number(duration) > 0 && cliffOk : method && agreed
   );
   const rows = {
-    Lock: [["Unlocks:", date || "XX.XX.XXXX"], feeRow],
+    Lock: [["Unlocks:", date || "XX.XX.XXXX"], rewardRow, feeRow],
     Vest: [
       ["Unlocks:", addDays(date, Number(cliff || 0) + Number(duration || 0)) || "XX.XX.XXXX"],
-      ["Duration:", `${duration || "XXX"} Days`], feeRow,
+      ["Duration:", `${duration || "XXX"} Days`], rewardRow, feeRow,
     ],
-    Burn: [["Destination:", method ? (BURN_METHODS[method] ? "Burned" : "Vault, 1000 years") : "—"], feeRow],
+    Burn: [["Destination:", method ? (BURN_METHODS[method] ? "Burned" : "Vault, 1000 years") : "—"], rewardRow, feeRow],
   }[tab];
 
   const submit = async () => {
+    // Overloads with bool wantsReward as the last argument
     const call = {
-      Lock: ["createVesting", [token, units, address, toUnix(date), 0n, 0n]],
-      Vest: ["createVesting", [token, units, address, toUnix(date), days(duration), days(cliff)]],
-      Burn: ["disposeERC20", [token, units, BURN_METHODS[method]]],
+      Lock: ["createVesting", [token, units, address, toUnix(date), 0n, 0n, wantsReward]],
+      Vest: ["createVesting", [token, units, address, toUnix(date), days(duration), days(cliff), wantsReward]],
+      Burn: ["disposeERC20", [token, units, BURN_METHODS[method], wantsReward]],
     }[tab];
     try {
       if (info.allowance == null || info.allowance < units) {
         await tx.send({ address: token, abi: erc20Abi, functionName: "approve", args: [CONTRACTS.router, units] });
       }
       await tx.send({ address: CONTRACTS.router, abi: routerAbi, functionName: call[0], args: call[1] });
-    } catch { /* tx.error */ }
+    } catch { /* error is stored in tx.error */ }
   };
 
-  const dateError = date && !dateOk && <small className="error" role="alert">Enter valid date</small>;
+  const dateError = date && !dateOk && <small className="error" role="alert">Enter a valid future date</small>;
 
   const form = (
     <>
@@ -91,6 +95,9 @@ export default function TokenAction({ tab, base }) {
           <Checkbox checked={agreed} onChange={setAgreed}>I confirm this action</Checkbox>
         </>
       )}
+      <Checkbox checked={wantsReward} onChange={setWantsReward}>
+        Receive $CAPE 
+      </Checkbox>
       {tx.error && <small className="error" role="alert">{tx.error}</small>}
     </>
   );
