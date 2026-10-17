@@ -1,4 +1,5 @@
 import { useState } from "react";
+import capeTitle from "../assets/cape-token.png";
 import Icon from "../components/Icon";
 
 const CA = "0xed31816Cb6553A0D3Cd5e05204b637ab8a98888";
@@ -80,7 +81,7 @@ export default function CapeToken() {
         <section className="cape__intro">
           <div className="cape__brand">
             <h1 className="cape__title">
-              CAPE TOKEN
+              <img src={capeTitle} alt="CAPE TOKEN" />
               <span className="cape__badge" aria-hidden="true">
                 <Icon name="coin" size={22} />
               </span>

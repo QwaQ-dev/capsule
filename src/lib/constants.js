@@ -22,7 +22,7 @@ export const NFT_ACTIONS = [
 export const ABOUT_ACTIONS = [
   { id: "roadmap", label: "Roadmap", icon: "map" },
   { id: "caps", label: "$CAPE token", icon: "coin" },
-  { id: "team", label: "TEAM", icon: "user" },
+  { id: "team", label: "Team", icon: "user" },
 ];
 
 export const BURN_ADDRESS = "0x000…dEaD";
