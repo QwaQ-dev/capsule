@@ -10,7 +10,7 @@ export const TOKEN_ACTIONS = [
   { id: "vest", label: "Vest", icon: "trend" },
   { id: "burn", label: "Burn", icon: "flame", tone: "burn" },
   { id: "multisend", label: "Multisend", icon: "radio", tone: "verify" },
-  { id: "verificate", label: "Verificate", icon: "coin", tone: "wide" },
+  { id: "verificate", label: "Verificate", icon: "clock", tone: "wide" },
 ];
 
 export const NFT_ACTIONS = [
@@ -21,11 +21,12 @@ export const NFT_ACTIONS = [
 
 export const ABOUT_ACTIONS = [
   { id: "roadmap", label: "Roadmap", icon: "map" },
-  { id: "caps", label: "$CAPS token", icon: "coin" },
-  { id: "team", label: "Team", icon: "user" },
+  { id: "caps", label: "$CAPE token", icon: "coin" },
+  { id: "team", label: "TEAM", icon: "user" },
 ];
 
 export const BURN_ADDRESS = "0x000…dEaD";
+export const TEAM_URL = "https://cape4labs.github.io/"; 
 
 export const addDays = (d, n) => {
   if (!d) return "";

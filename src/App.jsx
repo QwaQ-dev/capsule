@@ -5,6 +5,8 @@ import TokenAction from "./pages/TokenAction";
 import NftAction from "./pages/NftAction";
 import Verificate from "./pages/Verificate";
 import Multisend from "./pages/Multisend";
+import CapeToken from "./pages/CapeToken";
+import Roadmap from "./pages/Roadmap";
 import { PAGES } from "./lib/constants";
 import "./App.css";
 
@@ -28,6 +30,8 @@ export default function App() {
         <Route path="/nft/:tab" element={<TabRoute Page={NftAction} base="/nft" />} />
         <Route path="/verificate" element={<Verificate />} />
         <Route path="/multisend" element={<Multisend />} />
+        <Route path="/cape" element={<CapeToken />} />
+        <Route path="/roadmap" element={<Roadmap />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

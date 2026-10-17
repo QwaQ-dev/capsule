@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useConnection } from "wagmi";
 import Icon from "../components/Icon";
 import { Checkbox } from "../components/Field";
-import { TOKEN_ACTIONS, NFT_ACTIONS, ABOUT_ACTIONS } from "../lib/constants";
+import { TOKEN_ACTIONS, NFT_ACTIONS, ABOUT_ACTIONS, TEAM_URL } from "../lib/constants";
 import { usePositions } from "../hooks/usePositions";
 import { useTx } from "../hooks/useTx";
 import { CONTRACTS, routerAbi } from "../lib/contracts";
@@ -125,7 +125,9 @@ export default function Home() {
       return;
     }
     if (group === "About us") {
-      // no routes yet
+      if (id === "caps") navigate("/cape");
+      if (id === "roadmap") navigate("/roadmap");
+      if (id === "team") window.open(TEAM_URL, "_blank", "noopener,noreferrer");
     }
   };
 
