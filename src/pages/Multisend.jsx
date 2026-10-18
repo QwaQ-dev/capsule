@@ -35,6 +35,7 @@ export default function Multisend() {
   // Whether the user wants the optional action reward from the router
   const [wantsReward, setWantsReward] = useState(true);
   const [progress, setProgress] = useState("");
+  const [sent, setSent] = useState(0);
   const { address, isConnected } = useConnection();
   const tx = useTx();
   const info = useTokenInfo(token); // [CONTRACT READ] symbol, decimals, balanceOf
@@ -55,6 +56,7 @@ export default function Multisend() {
 
   const onStart = async () => {
     const parts = chunk(result.rows);
+    const count = result.rows.length;
     try {
       setProgress("approve");
       if (info.allowance == null || info.allowance < result.total) {
@@ -63,13 +65,20 @@ export default function Multisend() {
       for (const [i, part] of parts.entries()) {
         setProgress(`${i + 1}/${parts.length}`);
         // Overload with bool wantsReward as the last argument
-        await tx.send({
-          address: CONTRACTS.router,
-          abi: routerAbi,
-          functionName: "distribute",
-          args: [token, part.map((r) => r.address), part.map((r) => r.units), wantsReward],
-        });
+        await tx.send(
+          {
+            address: CONTRACTS.router,
+            abi: routerAbi,
+            functionName: "distribute",
+            args: [token, part.map((r) => r.address), part.map((r) => r.units), wantsReward],
+          },
+          { final: i === parts.length - 1 }
+        );
       }
+      // clear the form so the same batch can't be sent twice by accident
+      setSent(count);
+      setSource(null);
+      setConfirmed(false);
     } catch { /* error is stored in tx.error */ }
     setProgress("");
   };
@@ -99,7 +108,7 @@ export default function Multisend() {
       {result?.ok && <Issues items={result.warnings} tone="warn" />}
       {tx.error && <small className="error" role="alert">{tx.error}</small>}
       <Checkbox checked={wantsReward} onChange={setWantsReward}>
-        Receive $CAPE as a reward
+        Receive $CAPS as a reward
       </Checkbox>
       <Checkbox checked={confirmed} onChange={setConfirmed}>I confirm this action</Checkbox>
     </>
@@ -118,7 +127,8 @@ export default function Multisend() {
             ["Fee:", "gas only"],
           ]}
           cta={progress ? `Sending ${progress}…` : "Start"} onClick={onStart} onchain="write"
-          disabled={!isConnected || !isAddress(token) || !result?.ok || !confirmed || !!progress} />
+          disabled={!isConnected || !isAddress(token) || !result?.ok || !confirmed || !!progress}
+          success={tx.success ? { hash: tx.hash, text: `Sent to ${sent} addresses` } : null} />
       </div>
     </PageShell>
   );

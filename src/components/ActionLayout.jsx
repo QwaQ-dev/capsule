@@ -1,8 +1,11 @@
 import { Link, NavLink } from "react-router-dom";
 import Icon from "./Icon";
 import { PAGES } from "../lib/constants";
+import { elysiumTestnet } from "../lib/wagmi";
 
-export function SummaryCard({ icon, visual, headline, rows = [], cta, disabled, onClick, onchain }) {
+const EXPLORER = elysiumTestnet.blockExplorers.default.url;
+
+export function SummaryCard({ icon, visual, headline, rows = [], cta, disabled, onClick, onchain, success }) {
   return (
     <aside className={`panel_sum summary ${icon || visual ? "" : "summary--bare"}`}>
       <h3 className="summary__head">Summary</h3>
@@ -13,6 +16,14 @@ export function SummaryCard({ icon, visual, headline, rows = [], cta, disabled, 
         <dl className="rows">
           {rows.map(([k, v, chain]) => <div key={k}><dt>{k}</dt><dd data-onchain={chain}>{v}</dd></div>)}
         </dl>
+        {success && (
+          <div className="tx-success" role="status">
+            <span className="tx-success__title">✓ {success.text}</span>
+            <a className="explorer" href={`${EXPLORER}/tx/${success.hash}`} target="_blank" rel="noreferrer">
+              Check in Explorer ›
+            </a>
+          </div>
+        )}
         {cta && <button className="btn btn--outline" disabled={disabled} onClick={onClick} data-onchain={onchain}>{cta}</button>}
       </div>
     </aside>

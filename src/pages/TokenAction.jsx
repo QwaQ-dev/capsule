@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useConnection } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { erc20Abi, formatUnits, isAddress, parseUnits } from "viem";
 import ActionLayout, { SummaryCard } from "../components/ActionLayout";
 import { Field, DateInput, SelectInput, Checkbox } from "../components/Field";
@@ -7,6 +8,8 @@ import { PAGES, addDays } from "../lib/constants";
 import { CONTRACTS, BURN_METHODS, routerAbi, toUnix, days, isFuture } from "../lib/contracts";
 import { useTokenInfo } from "../hooks/useTokenInfo";
 import { useTx } from "../hooks/useTx";
+
+const DONE = { Lock: "Tokens locked", Vest: "Vesting created", Burn: "Tokens burned" };
 
 export default function TokenAction({ tab, base }) {
   const { address, isConnected } = useConnection();
@@ -20,6 +23,10 @@ export default function TokenAction({ tab, base }) {
   // Whether the user wants the optional action reward from the router
   const [wantsReward, setWantsReward] = useState(true);
   const tx = useTx();
+  const queryClient = useQueryClient();
+
+  // switching tabs should not keep the old success message
+  useEffect(() => { tx.reset(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const info = useTokenInfo(token); // [CONTRACT READ] symbol, decimals, balanceOf
   const decimals = info.decimals ?? 18;
@@ -56,7 +63,12 @@ export default function TokenAction({ tab, base }) {
       if (info.allowance == null || info.allowance < units) {
         await tx.send({ address: token, abi: erc20Abi, functionName: "approve", args: [CONTRACTS.router, units] });
       }
-      await tx.send({ address: CONTRACTS.router, abi: routerAbi, functionName: call[0], args: call[1] });
+      await tx.send(
+        { address: CONTRACTS.router, abi: routerAbi, functionName: call[0], args: call[1] },
+        { final: true }
+      );
+      setAmount("");
+      queryClient.invalidateQueries({ queryKey: ["positions"] });
     } catch { /* error is stored in tx.error */ }
   };
 
@@ -96,7 +108,7 @@ export default function TokenAction({ tab, base }) {
         </>
       )}
       <Checkbox checked={wantsReward} onChange={setWantsReward}>
-        Receive $CAPE as a reward
+        Receive $CAPS as a reward
       </Checkbox>
       {tx.error && <small className="error" role="alert">{tx.error}</small>}
     </>
@@ -106,6 +118,7 @@ export default function TokenAction({ tab, base }) {
     <ActionLayout label="Tokens" icon="coin" tab={tab} base={base} short={tab === "Burn"} form={form}
       summary={<SummaryCard icon="coin" headline={`${amount || 0} ${symbol}`} rows={rows}
         cta={tx.pending ? "Confirm in wallet…" : PAGES[tab].cta} disabled={!ready || tx.pending}
-        onClick={submit} onchain="write" />} />
+        onClick={submit} onchain="write"
+        success={tx.success ? { hash: tx.hash, text: DONE[tab] } : null} />} />
   );
 }

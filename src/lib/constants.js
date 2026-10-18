@@ -21,7 +21,7 @@ export const NFT_ACTIONS = [
 
 export const ABOUT_ACTIONS = [
   { id: "roadmap", label: "Roadmap", icon: "map" },
-  { id: "caps", label: "$CAPE token", icon: "coin" },
+  { id: "caps", label: "$CAPS token", icon: "coin" },
   { id: "team", label: "Team", icon: "user" },
 ];
 

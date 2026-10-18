@@ -2,31 +2,31 @@ import { useState } from "react";
 import capeTitle from "../assets/cape-token.png";
 import Icon from "../components/Icon";
 
-const CA = "0xed31816Cb6553A0D3Cd5e05204b637ab8a98888";
+const CA = "0x92aE6dEE9aA92d5F315096EBb0E77e7F8527c70b";
 const TOTAL_SUPPLY = "100,000,000";
-const SYMBOL = "$CAPE";
+const SYMBOL = "$CAPS";
 
 const SEGMENTS = [
   {
     id: "stage1",
     label: "Stage 1",
-    pct: 15,
+    pct: 10,
     color: "#c45c5c",
-    description: "Tokens intended for ecosystem development at Stage 3",
+    description: "Rewards for early users right after launch",
   },
   {
     id: "stage2",
     label: "Stage 2",
     pct: 20,
     color: "#b87a4a",
-    description: "Tokens intended for ecosystem development at Stage 3",
+    description: "A more sophisticated, oracle-based reward system",
   },
   {
     id: "stage3",
     label: "Stage 3",
-    pct: 35,
+    pct: 40,
     color: "#6faf5a",
-    description: "Tokens intended for ecosystem development at Stage 3",
+    description: `Rewards for holders who lock ${SYMBOL}`,
   },
   {
     id: "liquidity",
@@ -63,7 +63,7 @@ function CopyBtn({ value }) {
           await navigator.clipboard.writeText(value);
           setOk(true);
           setTimeout(() => setOk(false), 1200);
-        } catch { /* ignore */ }
+        } catch {  }
       }}
     >
       {ok ? "✓" : "⧉"}

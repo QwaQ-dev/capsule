@@ -1529,16 +1529,15 @@ input[type="number"]::-webkit-outer-spin-button {
 .socials__link:hover {
 	opacity: 1;
 }
-
 /* ========== Roadmap ========== */
 .roadmap {
-	width: min(720px, 100% - 72px);
+	width: min(820px, 100% - 72px);
 	margin-inline: auto;
 	padding: 72px 0 100px;
 }
 
 .roadmap__title {
-	margin-bottom: 24px;
+	margin-bottom: 28px;
 	font: 700 clamp(32px, 4vw, 40px) / 1 "Sonic", sans-serif;
 	letter-spacing: 0.02em;
 	text-transform: uppercase;
@@ -1547,38 +1546,49 @@ input[type="number"]::-webkit-outer-spin-button {
 .roadmap__list {
 	display: flex;
 	flex-direction: column;
-	gap: 36px;
+	gap: 48px;
 	border-left: 1.5px solid var(--line);
 }
 
 .roadmap__head {
 	display: flex;
 	align-items: center;
-	margin-bottom: 18px;
+	margin-bottom: 20px;
 }
 
 .roadmap__head img {
 	display: block;
+	flex-shrink: 0;
 	height: 27px;
 	width: auto;
+	margin-left: -1px;
 	image-rendering: pixelated;
+}
+
+.roadmap__subtitle {
+	flex-shrink: 0;
+	padding: 0 16px;
+	color: var(--muted);
+	font-size: 16px;
+	white-space: nowrap;
 }
 
 .roadmap__dash {
 	flex: 1;
+	min-width: 24px;
 	border-top: 1.5px dashed var(--line-soft);
 }
 
 .roadmap__stage ul {
 	display: flex;
 	flex-direction: column;
-	gap: 14px;
+	gap: 16px;
 	margin: 0;
-	padding-left: 38px;
+	padding-left: 36px;
 	list-style: none;
 	color: var(--muted);
 	font-size: 16px;
-	line-height: 1.5;
+	line-height: 1.6;
 }
 
 .roadmap__stage li {
@@ -1588,33 +1598,63 @@ input[type="number"]::-webkit-outer-spin-button {
 .roadmap__stage li::before {
 	content: "•";
 	position: absolute;
-	left: -16px;
+	left: -18px;
 }
 
 .roadmap__more {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	margin-top: 24px;
+	margin-top: 32px;
 	font: 500 20px var(--display);
 	letter-spacing: 0.04em;
 }
 
 @media (max-width: 768px) {
-	.header__right {
-		gap: 12px;
+	.roadmap {
+		width: calc(100% - 32px);
+		padding: 36px 0 72px;
 	}
 
-	.roadmap {
-		width: calc(100% - 36px);
-		padding: 36px 0 72px;
+	.roadmap__list {
+		gap: 36px;
+	}
+
+	.roadmap__head img {
+		height: 20px;
+	}
+
+	.roadmap__subtitle {
+		padding: 0 10px;
+		font-size: 14px;
+
 	}
 
 	.roadmap__stage ul {
 		padding-left: 28px;
+		font-size: 15px;
 	}
 
 	.cape__title img {
 		height: 20px;
 	}
+}
+
+/* ========== Tx success ========== */
+.tx-success {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 14px 12px;
+	border: 1.5px solid rgba(74, 222, 128, 0.55);
+	border-radius: 9px;
+	background: rgba(74, 222, 128, 0.06);
+	text-align: center;
+}
+
+.tx-success__title {
+	color: #4ade80;
+	font-size: 16px;
 }

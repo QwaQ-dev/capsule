@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useConnection } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { erc721Abi, isAddress } from "viem";
@@ -10,6 +10,8 @@ import { CONTRACTS, BURN_METHODS, DAY, routerAbi, toUnix, isFuture } from "../li
 import { useTx } from "../hooks/useTx";
 import { useOwnedNfts } from "../hooks/useOwnedNfts";
 import { publicClient as client } from "../lib/wagmi";
+
+const DONE = { Lock: "NFTs locked", Vest: "Vesting created", Burn: "NFTs burned" };
 
 function NftPicker({ ids, selected, onToggle }) {
   return (
@@ -45,6 +47,9 @@ export default function NftAction({ tab, base }) {
   const queryClient = useQueryClient();
   const nfts = useOwnedNfts(collection);
 
+  // switching tabs should not keep the old success message
+  useEffect(() => { tx.reset(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggle = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const dateOk = isFuture(date);
   const feeRow = ["Fee:", "gas only"];
@@ -75,11 +80,15 @@ export default function NftAction({ tab, base }) {
         const call = tab === "Burn"
           ? { functionName: "disposeERC721", args: [collection, id, BURN_METHODS[method], wantsReward] }
           : { functionName: "lock", args: [collection, id, address, tab === "Lock" ? toUnix(date) : unlockAt(i), wantsReward] };
-        await tx.send({ address: CONTRACTS.router, abi: routerAbi, ...call });
+        await tx.send(
+          { address: CONTRACTS.router, abi: routerAbi, ...call },
+          { final: i === selected.length - 1 }
+        );
       }
       setSelected([]);
     } catch { /* error is stored in tx.error */ }
     queryClient.invalidateQueries({ queryKey: ["nfts"] });
+    queryClient.invalidateQueries({ queryKey: ["positions"] });
     setProgress("");
   };
 
@@ -124,7 +133,7 @@ export default function NftAction({ tab, base }) {
         </>
       )}
       <Checkbox checked={wantsReward} onChange={setWantsReward}>
-        Receive $CAPE as a reward
+        Receive $CAPS as a reward
       </Checkbox>
       {tx.error && <small className="error" role="alert">{tx.error}</small>}
     </>
@@ -134,6 +143,7 @@ export default function NftAction({ tab, base }) {
     <ActionLayout label="NFT" icon="cube" tab={tab} base={base} short={tab === "Burn"} form={form}
       summary={<SummaryCard icon="cube" headline={`${selected.length} NFT`} rows={rows}
         cta={progress ? `Sending ${progress}…` : PAGES[tab].cta} disabled={!ready || !!progress}
-        onClick={submit} onchain="write" />} />
+        onClick={submit} onchain="write"
+        success={tx.success ? { hash: tx.hash, text: DONE[tab] } : null} />} />
   );
 }

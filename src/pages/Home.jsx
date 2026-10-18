@@ -50,12 +50,15 @@ function Positions() {
     setClaiming(p.key);
     try {
       // Append wantsReward to the claim args (releaseVesting / release overloads)
-      await tx.send({
-        address: CONTRACTS.router,
-        abi: routerAbi,
-        functionName: p.claim.fn,
-        args: [...p.claim.args, wantsReward],
-      });
+      await tx.send(
+        {
+          address: CONTRACTS.router,
+          abi: routerAbi,
+          functionName: p.claim.fn,
+          args: [...p.claim.args, wantsReward],
+        },
+        { final: true }
+      );
       await queryClient.invalidateQueries({ queryKey: ["positions"] });
     } catch { /* error is stored in tx.error */ }
     setClaiming("");
@@ -106,6 +109,14 @@ function Positions() {
             </table>
           </div>
         </>
+      )}
+      {tx.success && (
+        <div className="tx-success" role="status">
+          <span className="tx-success__title">✓ Claimed</span>
+          <a className="explorer" href={`${EXPLORER}/tx/${tx.hash}`} target="_blank" rel="noreferrer">
+            Check in Explorer ›
+          </a>
+        </div>
       )}
       {tx.error && <small className="error" role="alert">{tx.error}</small>}
     </section>
