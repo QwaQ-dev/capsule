@@ -114,7 +114,7 @@ export default function Verificate() {
           id="ca"
           value={ca}
           onChange={(e) => setCa(e.target.value)}
-          placeholder="0x…"
+          placeholder="0x… token address"
           spellCheck={false}
         />
         <button type="submit" className="btn btn--outline" disabled={loading || !ca.trim()}>

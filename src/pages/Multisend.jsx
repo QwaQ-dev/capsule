@@ -86,7 +86,7 @@ export default function Multisend() {
   const form = (
     <>
       <Field label="Token CA:" hint={info.symbol} onchain="read">
-        <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="0x…" />
+        <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="0x… token address" />
       </Field>
       <div className="pair pair--files">
         <div className="field">
@@ -120,9 +120,9 @@ export default function Multisend() {
         <form className="panel form form--short" onSubmit={(e) => e.preventDefault()}>{form}</form>
         <SummaryCard
           rows={[
-            ["Total addresses:", result?.ok ? result.rows.length : "—"],
-            ["Total amount:", result?.ok ? `${formatUnits(result.total, decimals)} ${symbol}` : "—"],
-            ["Transactions:", batches || "—"],
+            ["Total addresses:", result?.ok ? result.rows.length : "-"],
+            ["Total amount:", result?.ok ? `${formatUnits(result.total, decimals)} ${symbol}` : "-"],
+            ["Transactions:", batches || "-"],
             ["Reward:", wantsReward ? "yes" : "no"],
             ["Fee:", "gas only"],
           ]}

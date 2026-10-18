@@ -4,6 +4,11 @@ export const PAGES = {
   Burn: { title: "Burn assets", cta: "Burn" },
 };
 
+export const PAGES_NFT = {
+  Lock: { title: "Create lock", cta: "Lock" },
+  Burn: { title: "Burn assets", cta: "Burn" },
+};
+
 // Order matches the home screen layout (2-column grid, last item may span full width)
 export const TOKEN_ACTIONS = [
   { id: "lock", label: "Lock", icon: "lock" },
