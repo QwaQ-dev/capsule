@@ -10,7 +10,6 @@ const STAGES = [
     id: 1,
     img: stage1,
     alt: "Stage 1",
-    title: "Free to Use",
     items: [
       `Launch the app: free token verification, 0% fees.`,
       `${SYMBOL} rewards for every action.`,
@@ -22,7 +21,6 @@ const STAGES = [
     id: 2,
     img: stage2,
     alt: "Stage 2",
-    title: "Utility and Liquidity",
     items: [
       `Hold-to-use access: a small ${SYMBOL} balance required per request.`,
       `Live liquidity for ${SYMBOL}.`,
@@ -36,7 +34,6 @@ const STAGES = [
     id: 3,
     img: stage3,
     alt: "Stage 3",
-    title: "Ecosystem Growth",
     items: [
       "Permanent token rankings by category.",
       `Sponsored Tokens and Sponsored Blog Posts.`,
@@ -55,7 +52,6 @@ export default function Roadmap() {
           <section key={s.id} className="roadmap__stage">
             <div className="roadmap__head">
               <img src={s.img} alt={s.alt} />
-              <span className="roadmap__subtitle">{s.title}</span>
               <span className="roadmap__dash" aria-hidden="true" />
             </div>
             <ul>
