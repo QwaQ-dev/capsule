@@ -102,7 +102,7 @@ function Positions() {
                         </button>
                       )}
                     </td>
-                    <td><a className="explorer" href={`${EXPLORER}/tx/${p.hash}`} target="_blank" rel="noreferrer">Check in Explorer ›</a></td>
+                    <td><a className="explorer" href={`https://elysium.kinetiq.xyz/testnet-explorer/transaction/${p.hash}`} target="_blank" rel="noreferrer">Check in Explorer ›</a></td>
                   </tr>
                 ))}
               </tbody>
@@ -113,7 +113,7 @@ function Positions() {
       {tx.success && (
         <div className="tx-success" role="status">
           <span className="tx-success__title">✓ Claimed</span>
-          <a className="explorer" href={`${EXPLORER}/tx/${tx.hash}`} target="_blank" rel="noreferrer">
+          <a className="explorer" href={`https://elysium.kinetiq.xyz/testnet-explorer/transaction/${tx.hash}`} target="_blank" rel="noreferrer">
             Check in Explorer ›
           </a>
         </div>

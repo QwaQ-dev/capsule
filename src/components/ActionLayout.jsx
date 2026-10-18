@@ -47,7 +47,7 @@ export function SummaryCard({
             </span>
             <a
               className="explorer"
-              href={`${EXPLORER}/tx/${success.hash}`}
+              href={`https://elysium.kinetiq.xyz/testnet-explorer/transaction/${success.hash}`}
               target="_blank"
               rel="noreferrer"
             >

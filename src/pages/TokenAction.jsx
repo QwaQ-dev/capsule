@@ -31,7 +31,6 @@ export default function TokenAction({ tab, base }) {
   const info = useTokenInfo(token); // [CONTRACT READ] symbol, decimals, balanceOf
   const decimals = info.decimals ?? 18;
   const symbol = info.symbol ?? "TOKEN";
-
   let units = 0n;
   try { units = amount ? parseUnits(amount, decimals) : 0n; } catch { /* invalid amount */ }
   const enough = info.balance == null || units <= info.balance;
@@ -40,9 +39,16 @@ export default function TokenAction({ tab, base }) {
 
   const feeRow = ["Fee:", "gas only"];
   const rewardRow = ["Reward:", wantsReward ? "yes" : "no"];
-  const ready = isConnected && isAddress(token) && units > 0n && enough && (
-    tab === "Lock" ? dateOk : tab === "Vest" ? dateOk && Number(duration) > 0 && cliffOk : method && agreed
-  );
+  const blocker = !isConnected ? "Connect your wallet"
+    : !isAddress(token) ? "Enter a valid token address"
+    : units <= 0n ? "Enter an amount"
+    : !enough ? "Not enough tokens"
+    : tab === "Lock" && !dateOk ? "Enter a valid future date"
+    : tab === "Vest" && !(dateOk && Number(duration) > 0 && cliffOk) ? "Fill in the vesting dates"
+    : tab === "Burn" && !method ? "Select a burn method"
+    : tab === "Burn" && !agreed ? "Confirm the action"
+    : "";
+  const ready = !blocker;
   const rows = {
     Lock: [["Unlocks:", date || "XX.XX.XXXX"], rewardRow, feeRow],
     Vest: [
@@ -53,13 +59,14 @@ export default function TokenAction({ tab, base }) {
   }[tab];
 
   const submit = async () => {
-    // Overloads with bool wantsReward as the last argument
-    const call = {
-      Lock: ["createVesting", [token, units, address, toUnix(date), 0n, 0n, wantsReward]],
-      Vest: ["createVesting", [token, units, address, toUnix(date), days(duration), days(cliff), wantsReward]],
-      Burn: ["disposeERC20", [token, units, BURN_METHODS[method], wantsReward]],
-    }[tab];
     try {
+      // Build only the selected call: other tabs read fields that are empty here (e.g. date on Burn)
+      const call = {
+        Lock: () => ["createVesting", [token, units, address, toUnix(date), 0n, 0n, wantsReward]],
+        Vest: () => ["createVesting", [token, units, address, toUnix(date), days(duration), days(cliff), wantsReward]],
+        Burn: () => ["disposeERC20", [token, units, BURN_METHODS[method], wantsReward]],
+      }[tab]();
+
       if (info.allowance == null || info.allowance < units) {
         await tx.send({ address: token, abi: erc20Abi, functionName: "approve", args: [CONTRACTS.router, units] });
       }
@@ -110,6 +117,7 @@ export default function TokenAction({ tab, base }) {
       <Checkbox checked={wantsReward} onChange={setWantsReward}>
         Receive $CAPS as a reward
       </Checkbox>
+      {blocker && <small className="muted">{blocker}</small>}
       {tx.error && <small className="error" role="alert">{tx.error}</small>}
     </>
   );

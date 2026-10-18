@@ -86,13 +86,14 @@ export default function NftAction({ tab, base }) {
   const feeRow = ["Fee:", "gas only"];
   const rewardRow = ["Reward:", wantsReward ? "yes" : "no"];
 
-  const ready =
-    isConnected &&
-    isAddress(collection) &&
-    selected.length > 0 &&
-    (tab === "Lock"
-      ? dateOk && Number(interval) > 0 && Number(perBatch) > 0
-      : Boolean(method) && agreed);
+  const blocker = !isConnected ? "Connect your wallet"
+    : !isAddress(collection) ? "Enter a collection address"
+    : selected.length === 0 ? "Select at least one NFT"
+    : tab === "Lock" && !dateOk ? "Enter a valid future date"
+    : tab === "Burn" && !method ? "Select a burn method"
+    : tab === "Burn" && !agreed ? "Confirm the action"
+    : "";
+  const ready = !blocker;
 
   const rows = {
     Lock: [
@@ -285,7 +286,8 @@ export default function NftAction({ tab, base }) {
       <Checkbox checked={wantsReward} onChange={setWantsReward}>
         Receive $CAPS as a reward
       </Checkbox>
-
+      
+      {blocker && <small className="muted">{blocker}</small>}
       {tx.error && (
         <small className="error" role="alert">
           {tx.error}
